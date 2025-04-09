@@ -1,9 +1,11 @@
-import { TColumnType } from "../Type";
-import DateTimeUtil from "./DateTimeUtil";
-import StringUtil from "./StringUtil";
-
-export default class ToValueUtil {
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const DateTimeUtil_1 = __importDefault(require("./DateTimeUtil"));
+const StringUtil_1 = __importDefault(require("./StringUtil"));
+class ToValueUtil {
     /**
      * Converts the specified value to the appropriate format based on the column type.
      * 指定された値をカラムタイプに基づいて適切な形式に変換します。
@@ -14,12 +16,10 @@ export default class ToValueUtil {
      * @returns The converted value.
      * 変換された値。
      */
-    static toValue(columnType: TColumnType, value: any) {
-
+    static toValue(columnType, value) {
         if (value === null) {
             return 'null';
         }
-
         switch (columnType) {
             case "string":
                 return this.toString(value);
@@ -39,7 +39,6 @@ export default class ToValueUtil {
                 throw new Error(`指定したColumnTypeEnumは存在しません。(${columnType})`);
         }
     }
-    
     /**
      * Converts the specified value to a string format.
      * 指定された値を文字列形式に変換します。
@@ -48,14 +47,12 @@ export default class ToValueUtil {
      * @returns A string representation of the value.
      * 値の文字列表現。
      */
-    static toString(value: any) {
-        if (typeof(value) == 'string' || typeof(value) == 'number') {
+    static toString(value) {
+        if (typeof (value) == 'string' || typeof (value) == 'number') {
             return `${value}`;
         }
-
         throw new Error("文字列を入力してください。");
     }
-
     /**
      * Converts the specified value to a number format.
      * 指定された値を数値形式に変換します。
@@ -64,19 +61,18 @@ export default class ToValueUtil {
      * @returns A string representation of the number.
      * 数値の文字列表現。
      */
-    static toNumber(value: any) {
+    static toNumber(value) {
         if (typeof value === 'string') {
             if (value.trim() === "" || isNaN(Number(value))) {
                 throw new Error(`${value}は数値で入力してください。`);
             }
             return value;
-        } else if (typeof value === 'number') {
+        }
+        else if (typeof value === 'number') {
             return value.toString();
         }
-
         throw new Error(`${value}は数値で入力してください。`);
     }
-
     /**
      * Converts the specified value to a boolean format.
      * 指定された値をブール形式に変換します。
@@ -85,8 +81,8 @@ export default class ToValueUtil {
      * @returns A string representation of the boolean value.
      * ブール値の文字列表現。
      */
-    static toBool(value: any) {
-        switch (typeof(value)) {
+    static toBool(value) {
+        switch (typeof (value)) {
             case 'string':
                 if (value != 'true' && value != 'false') {
                     throw new Error(`${value}はtrue or falseの文字列で入力してください。`);
@@ -103,7 +99,6 @@ export default class ToValueUtil {
                 throw new Error(`${value}はtrue or falseの文字列、1 or 0の数値、bool型のいずれかで入力してください。`);
         }
     }
-
     /**
      * Converts the specified value to a UUID format.
      * 指定された値をUUID形式に変換します。
@@ -112,14 +107,12 @@ export default class ToValueUtil {
      * @returns A string representation of the UUID.
      * UUIDの文字列表現。
      */
-    static toUUID(value: any) {
-        if (StringUtil.isUUID(value)) {
+    static toUUID(value) {
+        if (StringUtil_1.default.isUUID(value)) {
             return value;
         }
-        
         throw new Error("UUIDのフォーマットエラーです。");
     }
-
     /**
      * Converts the specified value to SQL date format.
      * 指定された値をSQLの日付形式に変換します。
@@ -130,19 +123,19 @@ export default class ToValueUtil {
      * @throws SqlException If the specified value is invalid.
      * 指定された値が無効な場合。
      */
-    static toDate(value: any) {
+    static toDate(value) {
         if (value instanceof Date) {
-            return `${DateTimeUtil.toStringFromDate(value, 'date')}`;
-        } else if (DateTimeUtil.isYYYYMMDD(value)) {
+            return `${DateTimeUtil_1.default.toStringFromDate(value, 'date')}`;
+        }
+        else if (DateTimeUtil_1.default.isYYYYMMDD(value)) {
             return `${value}`;
-        } else if (DateTimeUtil.isYYYYMMDDhhmiss(value)) {
-            const split = (value as string).replace('T', ' ').split(' ');
+        }
+        else if (DateTimeUtil_1.default.isYYYYMMDDhhmiss(value)) {
+            const split = value.replace('T', ' ').split(' ');
             return `${split[0]}`;
         }
-
         throw new Error(`${value}はyyyy-mm-ddの文字列、またはDate型で入力してください。`);
     }
-
     /**
      * Converts the specified value to SQL datetime format.
      * 指定された値をSQLの日時形式に変換します。
@@ -153,20 +146,18 @@ export default class ToValueUtil {
      * @throws SqlException If the specified value is invalid.
      * 指定された値が無効な場合。
      */
-    static toDateTime(value: any) {
+    static toDateTime(value) {
         if (value instanceof Date) {
-            return `${DateTimeUtil.toStringFromDate(value, 'datetime')}`;
+            return `${DateTimeUtil_1.default.toStringFromDate(value, 'datetime')}`;
         }
-
-        if (DateTimeUtil.isYYYYMMDD(`${value}`)) {
+        if (DateTimeUtil_1.default.isYYYYMMDD(`${value}`)) {
             return `${value} 00:00:00`;
-        } else if (DateTimeUtil.isYYYYMMDDhhmiss(value)) {
-            return `${(value as string).replace('T', ' ')}`;
         }
-
+        else if (DateTimeUtil_1.default.isYYYYMMDDhhmiss(value)) {
+            return `${value.replace('T', ' ')}`;
+        }
         throw new Error(`${value}はyyyy-mm-dd またはyyyy-mm-dd hh:mi:ss形式の文字列、またはDate型で入力してください。`);
     }
-
     /**
      * Converts the specified value to SQL time format.
      * 指定された値をSQLの時間形式に変換します。
@@ -177,20 +168,20 @@ export default class ToValueUtil {
      * @throws SqlException If the specified value is invalid.
      * 指定された値が無効な場合。
      */
-    static toTime(value: any) {
-        
+    static toTime(value) {
         if (typeof value === 'string') {
-            if (DateTimeUtil.isHHMMSS(value)) {
+            if (DateTimeUtil_1.default.isHHMMSS(value)) {
                 return `${value}`;
-            } else if (DateTimeUtil.isHHMM(value)) {
+            }
+            else if (DateTimeUtil_1.default.isHHMM(value)) {
                 return `${value}:00`;
             }
-
             throw new Error("Timeはhh:miまたはhh:mi:ssの文字列で入力してください。");
-        } else if (value instanceof Date) {
-            return `${DateTimeUtil.toStringFromDate(value, 'time')}`;
         }
-
+        else if (value instanceof Date) {
+            return `${DateTimeUtil_1.default.toStringFromDate(value, 'time')}`;
+        }
         throw new Error(`${value}はhh:mi または hh:mi:ss形式の文字列、またはDate型で入力してください。`);
     }
 }
+exports.default = ToValueUtil;

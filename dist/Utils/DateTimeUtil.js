@@ -1,12 +1,13 @@
-export default class DateTimeUtil {
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+class DateTimeUtil {
     /**
      * Checks if the value is a valid date-time format
      * 値が有効な日付時間形式かどうかを確認します
      * @param value - 検証する値, The value to be validated
      * @returns {boolean} - 値が有効な日付時間形式であるかどうか, Whether the value is a valid date-time format
      */
-    private static isErrorDateTime(value: string): boolean {
+    static isErrorDateTime(value) {
         try {
             const [datePart, timePart] = value.split(' ');
             const [year, month, day] = datePart.split('-').map(Number);
@@ -14,19 +15,18 @@ export default class DateTimeUtil {
             if (timePart !== undefined) {
                 [hour, minute, sec] = timePart.split(':').map(Number);
             }
-            
             const date = new Date(year, month - 1, day, hour, minute, sec);
-            return year !== date.getFullYear() || 
-                   month !== date.getMonth() + 1 || 
-                   day !== date.getDate() ||
-                   hour !== date.getHours() ||
-                   minute !== date.getMinutes() ||
-                   sec !== date.getSeconds()
-        } catch (error) {
+            return year !== date.getFullYear() ||
+                month !== date.getMonth() + 1 ||
+                day !== date.getDate() ||
+                hour !== date.getHours() ||
+                minute !== date.getMinutes() ||
+                sec !== date.getSeconds();
+        }
+        catch (error) {
             return true;
         }
     }
-
     /**
      * Generates a Date object from a string.
      * 文字列からDateオブジェクトを生成します。
@@ -35,7 +35,7 @@ export default class DateTimeUtil {
      * @returns Date object
      * Dateオブジェクト
      */
-    static toDateFromString(dateString: string): Date {
+    static toDateFromString(dateString) {
         const [datePart, timePart] = dateString.split(' ');
         const [year, month, day] = datePart.split('-').map(Number);
         let [hours, minutes, seconds] = [0, 0, 0];
@@ -44,7 +44,6 @@ export default class DateTimeUtil {
         }
         return new Date(year, month - 1, day, hours, minutes, seconds);
     }
-
     /**
      * Formats the specified date.
      * 指定された日付をフォーマットします。
@@ -55,15 +54,13 @@ export default class DateTimeUtil {
      * @returns A formatted date string.
      * フォーマットされた日付文字列
      */
-    static toStringFromDate(date: Date, type: 'datetime' | 'date' | 'time'): string {
-
+    static toStringFromDate(date, type) {
         const year = date.getFullYear().toString().padStart(4, '0');
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
         const day = date.getDate().toString().padStart(2, '0');
         const hour = date.getHours().toString().padStart(2, '0');
         const minute = date.getMinutes().toString().padStart(2, '0');
         const second = date.getSeconds().toString().padStart(2, '0');
-
         switch (type) {
             case 'datetime':
                 return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
@@ -75,72 +72,63 @@ export default class DateTimeUtil {
                 throw new Error('Invalid type');
         }
     }
-
     /**
      * Validates if the given value is in the format YYYY-MM-DD
      * 与えられた値がYYYY-MM-DD形式であるかどうかを検証します
      * @param value - The value to be validated, 検証する値
      * @returns {boolean} - Whether the value is in the format YYYY-MM-DD, 値がYYYY-MM-DD形式であるかどうか
      */
-    static isYYYYMMDD(value: any) {
+    static isYYYYMMDD(value) {
         if (typeof value !== 'string') {
             return false;
         }
-
         const pattern = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
         if (pattern.test(value) === false) {
             return false;
         }
-
         return this.isErrorDateTime(value) === false;
     }
-
     /**
      * Validates if the given value is in the format YYYY-MM-DD hh:mm:ss
      * 与えられた値がYYYY-MM-DD hh:mm:ss形式であるかどうかを検証します
      * @param value - The value to be validated, 検証する値
      * @returns {boolean} - Whether the value is in the format YYYY-MM-DD hh:mm:ss, 値がYYYY-MM-DD hh:mm:ss形式であるかどうか
      */
-    static isYYYYMMDDhhmiss(value: any) {
+    static isYYYYMMDDhhmiss(value) {
         if (typeof value !== 'string') {
             return false;
         }
-
         const pattern = new RegExp('^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}$');
         if (pattern.test(value) === false) {
             return false;
         }
-
         return this.isErrorDateTime(value) === false;
     }
-
     /**
      * Validates if the given value is in the format YYYY-MM-DD hh:mm:ss
      * 与えられた値がYYYY-MM-DD hh:mm:ss形式であるかどうかを検証します
      * @param value - The value to be validated, 検証する値
      * @returns {boolean} - Whether the value is in the format YYYY-MM-DD hh:mm:ss, 値がYYYY-MM-DD hh:mm:ss形式であるかどうか
      */
-    static isHHMM(value: any) {
+    static isHHMM(value) {
         if (typeof value !== 'string') {
             return false;
         }
-
         const pattern = new RegExp('^(?:[01]\\d|2[0-3]):[0-5]\\d$');
         return pattern.test(value);
     }
-
     /**
      * Validates if the given value is in the format HH:MM:SS
      * 与えられた値がHH:MM:SS形式であるかどうかを検証します
      * @param value - The value to be validated, 検証する値
      * @returns {boolean} - Whether the value is in the format HH:MM:SS, 値がHH:MM:SS形式であるかどうか
      */
-    static isHHMMSS(value: any) {
+    static isHHMMSS(value) {
         if (typeof value !== 'string') {
             return false;
         }
-
         const pattern = new RegExp('^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$');
         return pattern.test(value);
     }
 }
+exports.default = DateTimeUtil;
