@@ -16,6 +16,7 @@ exports.TableModel = void 0;
 const ToValueUtil_1 = __importDefault(require("./Utils/ToValueUtil"));
 const ValidateValueUtil_1 = __importDefault(require("./Utils/ValidateValueUtil"));
 const SelectAlias_1 = __importDefault(require("./SqlUtils/SelectAlias"));
+const QueryUtil_1 = __importDefault(require("./SqlUtils/QueryUtil"));
 // export type WhereCondition = string | {
 //     leftColumn: string | ColumnInfoType, 
 //     operator: OperatorParamType, 
@@ -89,155 +90,8 @@ class TableModel {
         // Setすることがあるなら、Setterを追加
         // その際にLimitとOffsetの更新も行う
         this.pageCount = 10;
-        // super();
         this.client = client;
         this.asTableName = asName;
-    }
-    /**
-     * 指定されたIDに基づいてデータを検索します。
-     * Searches for data based on the specified ID.
-     * @param id 検索するID
-     *           The ID to search for.
-     * @param selectColumns 取得するカラムの配列、"*" または null
-     *                      An array of columns to select, "*" or null.
-     * @param selectQueries 追加のクエリの配列、または null
-     *                      An array of additional queries, or null.
-     * @returns 検索結果のデータ
-     *          The data of the search result.
-     */
-    find(id_1) {
-        return __awaiter(this, arguments, void 0, function* (id, selectColumns = "*", selectAliases = null) {
-            if ('id' in this.Columns === false) {
-                throw new Error("idがColumnsに設定されていません。");
-            }
-            const idColumn = this.Columns['id'];
-            if (idColumn.attribute !== 'primary') {
-                throw new Error("idはPrimary Keyとして設定されていません。");
-            }
-            let selects = [];
-            if (selectColumns == "*") {
-                for (const key of Object.keys(this.Columns)) {
-                    selects.push(SelectAlias_1.default.create({ model: this, name: key }));
-                }
-            }
-            else if (selectColumns != null) {
-                for (const key of selectColumns) {
-                    selects.push(SelectAlias_1.default.create({ model: this, name: key }));
-                }
-            }
-            if (selectAliases != null) {
-                for (const alias of selectAliases) {
-                    selects.push(`${alias.alias} as "${alias.as}"`);
-                }
-            }
-            const sql = `SELECT ${selects.join(',')} FROM ${this.TableName} WHERE id = $1`;
-            let datas = yield this.executeQuery(sql, [ToValueUtil_1.default.toValue(idColumn.type, id)]);
-            return datas.rowCount == 0 ? null : datas.rows[0];
-        });
-    }
-    /**
-     * Throws a validation error with the specified message.
-     * 指定されたメッセージでバリデーションエラーをスローします。
-     * @param message The error message.
-     *                エラーメッセージ。
-     */
-    throwValidationError(message) {
-        throw new Error(message);
-    }
-    /**
-     * オプションのバリデーションを行います。
-     * Validates the options.
-     * @param options 検証するオプションのオブジェクト
-     * @param options The object containing options to validate
-     */
-    validateOptions(options) {
-        for (const [key, value] of Object.entries(options)) {
-            if (key in this.Columns === false) {
-                throw new Error(`${key}は${this.TableName}テーブルに存在しません。`);
-            }
-            if (value === undefined) {
-                continue;
-            }
-            const column = this.Columns[key];
-            if (value === null) {
-                if (column.attribute === 'nullable') {
-                    continue;
-                }
-                this.throwValidationError(`${this.tableName}.${key}はNULL許容されていないカラムです。`);
-            }
-            if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
-                switch (column.type) {
-                    case "string":
-                        throw new Error("stringの場合、columnのlengthを指定してください。");
-                    case 'uuid':
-                        this.throwValidationError(`${column.name}はUUIDで入力してください。`);
-                    case 'number':
-                        this.throwValidationError(`${column.name}は数値で入力してください。`);
-                    case 'bool':
-                        this.throwValidationError(`${column.name}はbool型,"true","false",0,1のいずれかで入力してください。`);
-                    case 'date':
-                        this.throwValidationError(`${column.name}は"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型で入力してください。`);
-                    case 'time':
-                        this.throwValidationError(`${column.name}は"hh:mi"形式または"hh:mi:ss"形式で入力してください。`);
-                    case 'timestamp':
-                        this.throwValidationError(`${column.name}は"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型で入力してください。`);
-                }
-            }
-            if (column.type === 'string') {
-                if (column.length === undefined) {
-                    throw new Error("stringの場合、columnのlengthを指定してください。");
-                }
-                if (value.toString().length > column.length) {
-                    this.throwValidationError(`${column.name}は${column.length}文字以内で入力してください。`);
-                }
-            }
-        }
-    }
-    /**
-     * Performs validation checks during INSERT.
-     * INSERT時のバリデーションチェックを行う
-     * @param values The values to be inserted.
-     * 挿入する値
-     * @param connection The database connection.
-     * データベース接続
-     */
-    validateInsert(options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            for (const columnKey in this.Columns) {
-                const column = this.Columns[columnKey];
-                if (options[columnKey] === undefined || options[columnKey] === null) {
-                    // Null許容されていないカラムにNULLを入れようとしているか？
-                    if (column.attribute === "primary" || column.attribute === "noDefault") {
-                        this.throwValidationError(`${column.name}を入力してください。`);
-                    }
-                }
-            }
-        });
-    }
-    /**
-     * Executes an insert operation with the provided options.
-     * 指定されたオプションで��入操作を実行します。
-     * @param options The options for the insert operation.
-     * ��入操作のオプション。
-     */
-    executeInsert(options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.validateOptions(options);
-            yield this.validateInsert(options);
-            const insertColumns = [];
-            const insertValues = [];
-            const insertVar = [];
-            for (const [key, value] of Object.entries(options)) {
-                if (value === undefined || value === null) {
-                    continue;
-                }
-                insertColumns.push(key);
-                insertValues.push(value);
-                insertVar.push(`$${insertVar.length + 1}`);
-            }
-            let sql = `INSERT INTO ${this.TableName} (${insertColumns.join(",")}) VALUES (${insertVar.join(",")});`;
-            yield this.executeQuery(sql, insertValues);
-        });
     }
     // /**
     //  * SELECT句の追加
@@ -290,46 +144,12 @@ class TableModel {
     //     this.selectColumns.push(`(${selectQuery}) as "${as}"`);
     // }
     // /**
-    //  * 作成日時と更新日時をSELECT句に追加します。
-    //  * @param baseModel 作成日時と更新日時を取得するためのBaseModelオブジェクト。デフォルトは現在のBaseModel。
-    //  */
-    // public selectCreateUpdateTime(baseModel: BaseModel | null = null) {
-    //     const asTableName = baseModel == null ? this.AsTableName : baseModel.AsTableName;
-    //     this.selectDateTime(`"${asTableName}".create_at`, true, "createTime");
-    //     this.selectDateTime(`"${asTableName}".update_at`, true, "updateTime");
-    // }
-    // /**
-    //  * 【廃止予定】
-    //  * JOIN条件の追加
-    //  * @param joinType JOINの種類（'left' または 'inner'）
-    //  * @param tableName 結合するテーブル名
-    //  * @param conditions 結合条件の配列
-    //  */
-    // public join(joinType: 'left' | 'inner', joinBaseModel: BaseModel, 
-    //     conditions: Array<WhereCondition>) {
-    //     let obj = {
-    //         type : joinType,
-    //         joinBaseModel: joinBaseModel,
-    //         conditions: conditions.map((condition) => {
-    //             if (typeof(condition) == 'string') {
-    //                 return condition;
-    //             }
-    //             if (typeof(condition.leftColumn) == 'string') {
-    //                 return SqlUtil.createWhere(new ColumnInfoType(condition.leftColumn, this), condition.operator, condition.rightColumn);
-    //             } else {
-    //                 return SqlUtil.createWhere(condition.leftColumn, condition.operator, condition.rightColumn);
-    //             }
-    //         })
-    //     };
-    //     this.joinConditions.push(obj);
-    // }
-    // /**
     //  * 指定された条件に基づいてテーブルを結合します。
     //  * @param joinType 結合の種類を指定します
     //  * @param joinBaseModel 結合する対象のBaseModelインスタンスを指定します。
     //  * @param conditions 結合条件を指定します。条件はオブジェクトまたは文字列で指定できます。
     //  */
-    // public joinNew(joinType: 'left' | 'inner', joinBaseModel: BaseModel, conditions: Array<NestedConditionType>) {
+    // public join(joinType: 'left' | 'inner', joinBaseModel: BaseModel, conditions: Array<NestedConditionType>) {
     //     this.joinConditions.push({
     //         type: joinType, joinBaseModel: joinBaseModel,
     //         conditions: [this.createCondition(conditions, this)]
@@ -652,44 +472,175 @@ class TableModel {
     //     let data = await this.executeQuery(sql, client);
     //     return data.rowCount;
     // }
-    // /**
-    //  * IDを指定してレコードを更新する前のバリデーションチェックを行う
-    //  * @param id 更新対象のレコードのID
-    //  * @param updates 更新する値のオブジェクト。キーはカラム名、値は更新する値。
-    //  * @param connection データベース接続オブジェクト。デフォルトはConnection。
-    //  */
-    // public async validateUpdateId(id: string, options: BaseOptionType, client: PoolClient) : Promise<void> {
-    //     if (StringUtil.isErrorRegrex(RegexPatternEnum.uuid, id)) {
-    //         throw new InputErrorException("M00-U00", `idの形式が不正です。`);
-    //     }
-    // }
-    // /**
-    //  * 指定されたIDのレコードを更新
-    //  * @param id 更新対象のレコードのID
-    //  * @param updates 更新する値のオブジェクト。キーはカラム名、値は更新する値。
-    //  * @param connection データベース接続オブジェクト。デフォルトはConnection。
-    //  * @returns 更新が成功したかどうかを示すブール値
-    //  */
-    // public async executeUpdateId(id: string, options: BaseOptionType, client: PoolClient) : Promise<boolean> {
-    //     const updates = options.toObject;
-    //     await this.validateUpdate(options, client);
-    //     await this.validateUpdateId(id, options, client);
-    //     await this.validateCommon(options, client);
-    //     let sql = `UPDATE ${this.TableName} SET update_at = CURRENT_TIMESTAMP`;
-    //     Object.keys(updates).forEach((camelKey) => {
-    //         const snakeKey = StringUtil.formatFromCamelToSnake(camelKey);
-    //         // idは更新してはいけないので、UPDATE対象から外す
-    //         // undefinedは更新対象でないので外す
-    //         if (snakeKey in this.Columns == false || snakeKey == 'id' || updates[camelKey] === undefined) {
-    //             return;
-    //         }
-    //         const columnInfo = this.Columns[snakeKey];
-    //         sql += `, ${snakeKey} = ${SqlUtil.toSqlValue(columnInfo, updates[camelKey])}`
-    //     });
-    //     sql +=  ` WHERE id = '${id}'`;
-    //     const data = await this.executeQuery(sql, client);
-    //     return data.rowCount == 1;
-    // }
+    /**
+     * 指定されたIDに基づいてデータを検索します。
+     * Searches for data based on the specified ID.
+     * @param id 検索するID
+     *           The ID to search for.
+     * @param selectColumns 取得するカラムの配列、"*" または null
+     *                      An array of columns to select, "*" or null.
+     * @param selectQueries 追加のクエリの配列、または null
+     *                      An array of additional queries, or null.
+     * @returns 検索結果のデータ
+     *          The data of the search result.
+     */
+    find(id_1) {
+        return __awaiter(this, arguments, void 0, function* (id, selectColumns = "*", selectAliases = null) {
+            if ('id' in this.Columns === false) {
+                throw new Error("idがColumnsに設定されていません。");
+            }
+            const idColumn = this.Columns['id'];
+            if (idColumn.attribute !== 'primary') {
+                throw new Error("idはPrimary Keyとして設定されていません。");
+            }
+            let selects = [];
+            if (selectColumns == "*") {
+                for (const key of Object.keys(this.Columns)) {
+                    selects.push(SelectAlias_1.default.create({ model: this, name: key }));
+                }
+            }
+            else if (selectColumns != null) {
+                for (const key of selectColumns) {
+                    selects.push(SelectAlias_1.default.create({ model: this, name: key }));
+                }
+            }
+            if (selectAliases != null) {
+                for (const alias of selectAliases) {
+                    selects.push(`${alias.alias} as "${alias.as}"`);
+                }
+            }
+            const sql = `SELECT ${selects.join(',')} FROM ${this.TableName} WHERE id = $1`;
+            let datas = yield this.executeQuery(sql, [ToValueUtil_1.default.toValue(idColumn.type, id)]);
+            return datas.rowCount == 0 ? null : datas.rows[0];
+        });
+    }
+    /**
+     * Throws a validation error with the specified message.
+     * 指定されたメッセージでバリデーションエラーをスローします。
+     * @param message The error message.
+     *                エラーメッセージ。
+     */
+    throwValidationError(message) {
+        throw new Error(message);
+    }
+    /**
+     * オプションのバリデーションを行います。
+     * Validates the options.
+     * @param options 検証するオプションのオブジェクト
+     * @param options The object containing options to validate
+     */
+    validateOptions(options) {
+        for (const [key, value] of Object.entries(options)) {
+            if (key in this.Columns === false) {
+                throw new Error(`${key}は${this.TableName}テーブルに存在しません。`);
+            }
+            if (value === undefined) {
+                continue;
+            }
+            const column = this.Columns[key];
+            if (value === null) {
+                if (column.attribute === 'nullable') {
+                    continue;
+                }
+                this.throwValidationError(`${this.tableName}.${key}はNULL許容されていないカラムです。`);
+            }
+            if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
+                switch (column.type) {
+                    case "string":
+                        throw new Error("stringの場合、columnのlengthを指定してください。");
+                    case 'uuid':
+                        this.throwValidationError(`${column.name}はUUIDで入力してください。`);
+                    case 'number':
+                        this.throwValidationError(`${column.name}は数値で入力してください。`);
+                    case 'bool':
+                        this.throwValidationError(`${column.name}はbool型,"true","false",0,1のいずれかで入力してください。`);
+                    case 'date':
+                        this.throwValidationError(`${column.name}は"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型で入力してください。`);
+                    case 'time':
+                        this.throwValidationError(`${column.name}は"hh:mi"形式または"hh:mi:ss"形式で入力してください。`);
+                    case 'timestamp':
+                        this.throwValidationError(`${column.name}は"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型で入力してください。`);
+                }
+            }
+            if (column.type === 'string') {
+                if (column.length === undefined) {
+                    throw new Error("stringの場合、columnのlengthを指定してください。");
+                }
+                if (value.toString().length > column.length) {
+                    this.throwValidationError(`${column.name}は${column.length}文字以内で入力してください。`);
+                }
+            }
+        }
+    }
+    /**
+     * Performs validation checks during INSERT.
+     * INSERT時のバリデーションチェックを行う
+     * @param values The values to be inserted.
+     * 挿入する値
+     * @param connection The database connection.
+     * データベース接続
+     */
+    validateInsert(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            for (const columnKey in this.Columns) {
+                const column = this.Columns[columnKey];
+                if (options[columnKey] === undefined || options[columnKey] === null) {
+                    // Null許容されていないカラムにNULLを入れようとしているか？
+                    if (column.attribute === "primary" || column.attribute === "noDefault") {
+                        this.throwValidationError(`${column.name}を入力してください。`);
+                    }
+                }
+            }
+        });
+    }
+    /**
+     * Executes an insert operation with the provided options.
+     * 指定されたオプションで��入操作を実行します。
+     * @param options The options for the insert operation.
+     * ��入操作のオプション。
+     */
+    executeInsert(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.validateOptions(options);
+            yield this.validateInsert(options);
+            const query = QueryUtil_1.default.createInsert(options, this.TableName);
+            yield this.executeQuery(query.sql, query.vars);
+        });
+    }
+    /**
+     * IDを指定してレコードを更新する前のバリデーションチェックを行う
+     * @param id 更新対象のレコードのID
+     * @param updates 更新する値のオブジェクト。キーはカラム名、値は更新する値。
+     * @param connection データベース接続オブジェクト。デフォルトはConnection。
+     */
+    validateUpdateId(id, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if ('id' in this.Columns === false) {
+                throw new Error("idがColumnsに設定されていません。");
+            }
+            const idColumn = this.Columns['id'];
+            if (idColumn.attribute !== 'primary') {
+                throw new Error("idはPrimary Keyとして設定されていません。");
+            }
+        });
+    }
+    /**
+     * 指定されたIDのレコードを更新
+     * @param id 更新対象のレコードのID
+     * @param updates 更新する値のオブジェクト。キーはカラム名、値は更新する値。
+     * @param connection データベース接続オブジェクト。デフォルトはConnection。
+     * @returns 更新が成功したかどうかを示すブール値
+     */
+    executeUpdateId(id, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.validateOptions(options);
+            yield this.validateUpdateId(id, options);
+            // await this.validateUpdate(options, client);
+            const query = QueryUtil_1.default.createUpdateId(id, options, this);
+            const data = yield this.executeQuery(query.sql, query.vars);
+            return data.rowCount == 1;
+        });
+    }
     // /**
     //  * SQL文の実行
     //  * @param connection connection 

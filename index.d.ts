@@ -23,6 +23,8 @@ declare module 'test_table_model' {
         protected throwValidationError(message: string): never;
         protected validateOptions(options: {[key: string]: any}) : void;
         protected validateInsert(options: {[key: string]: any}) : Promise<void>;
+        protected validateUpdateId(id: string, options: {[key: string]: any}) : Promise<void>;
         public executeInsert(options: {[key: string]: any}) : Promise<void>;
+        public executeUpdateId(id: any, options: {[key: string]: any}) : Promise<boolean>;
     }
 }
