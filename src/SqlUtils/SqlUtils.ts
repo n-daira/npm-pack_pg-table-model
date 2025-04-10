@@ -15,21 +15,11 @@ export default class SqlUtil {
             throw new Error(`${column.model.TableName}に${column.name}は存在しません。`);
         }
 
-        return column.model.Columns[column.name];
-    }
-
-    /**
-     * Converts a column to a SQL query string.
-     * カラムをSQLクエリ文字列に変換します。
-     * @param column - The column information.
-     *                 カラム情報。
-     * @returns The SQL query string.
-     *          SQLクエリ文字列。
-     */
-    static toColumnQuery(column: TColumnInfo) {
-        if (column.name in column.model.Columns === false) {
-            throw new Error(`${column.model.TableName}に${column.name}は存在しません。`);
-        }
-        return `"${column.model.AsTableName}".${column.name}`;
+        return { 
+            ...column.model.Columns[column.name], 
+            columnName: column.name, 
+            tableName: column.model.TableName,
+            expression: `"${column.model.AsTableName}".${column.name}`
+        };
     }
 }

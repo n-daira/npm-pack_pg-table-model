@@ -1,31 +1,35 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const DateTimeUtil_1 = __importDefault(require("./DateTimeUtil"));
-const StringUtil_1 = __importDefault(require("./StringUtil"));
-class ValidateValueUtil {
-    static validateId(columns, id) {
+import { TColumn, TColumnType } from "../Type";
+import DateTimeUtil from "../Utils/DateTimeUtil";
+import StringUtil from "../Utils/StringUtil";
+
+export default class ValidateValueUtil {
+    
+    static validateId(columns: {[key: string]: TColumn}, id: any) {
         if ('id' in columns === false) {
             throw new Error("idがColumnsに設定されていません。");
         }
+
         const column = columns['id'];
         if (column.attribute !== 'primary') {
             throw new Error("idはPrimary Keyとして設定されていません。");
         }
+
         ValidateValueUtil.validateValue(column, id);
     }
-    static validateValue(column, value) {
+
+    static validateValue(column: TColumn, value: any) {
         if (value === undefined) {
             throw new Error(`valueはundefinedです。`);
         }
+
         if (value === null) {
             if (column.attribute === 'nullable') {
                 return null;
             }
+
             throw new Error(`指定したColumnはNull許容していません。(${column.attribute})`);
         }
+
         switch (column.type) {
             case "string":
                 if (this.isErrorString(value)) {
@@ -66,7 +70,8 @@ class ValidateValueUtil {
                 throw new Error(`指定したカラムタイプは存在しません。(${column.type})`);
         }
     }
-    static isErrorValue(columnType, value) {
+
+    static isErrorValue(columnType: TColumnType, value: any) {
         switch (columnType) {
             case "string":
                 return this.isErrorString(value);
@@ -86,26 +91,29 @@ class ValidateValueUtil {
                 throw new Error(`指定したColumnTypeEnumは存在しません。(${columnType})`);
         }
     }
-    static isErrorString(value) {
-        if (typeof (value) == 'string' || typeof (value) == 'number') {
+
+    static isErrorString(value: any): boolean {
+        if (typeof(value) == 'string' || typeof(value) == 'number') {
             return false;
         }
         return true;
     }
-    static isErrorNumber(value) {
+
+    static isErrorNumber(value: any): boolean {
         if (typeof value === 'string') {
             if (value.trim() === "" || isNaN(Number(value))) {
                 return true;
             }
             return false;
-        }
-        else if (typeof value === 'number') {
+        } else if (typeof value === 'number') {
             return false;
         }
+
         return true;
     }
-    static isErrorBool(value) {
-        switch (typeof (value)) {
+
+    static isErrorBool(value: any): boolean {
+        switch (typeof(value)) {
             case 'string':
                 return value !== 'true' && value !== 'false';
             case 'number':
@@ -116,44 +124,45 @@ class ValidateValueUtil {
                 return true;
         }
     }
-    static isErrorUUID(value) {
-        return StringUtil_1.default.isUUID(value) === false;
+
+    static isErrorUUID(value: any) {
+        return StringUtil.isUUID(value) === false;
     }
-    static isErrorDate(value) {
+
+    static isErrorDate(value: any): boolean {
         if (value instanceof Date) {
             return false;
-        }
-        else if (DateTimeUtil_1.default.isYYYYMMDD(value)) {
+        } else if (DateTimeUtil.isYYYYMMDD(value)) {
+            return false;
+        } else if (DateTimeUtil.isYYYYMMDDhhmiss(value)) {
             return false;
         }
-        else if (DateTimeUtil_1.default.isYYYYMMDDhhmiss(value)) {
-            return false;
-        }
+
         return true;
     }
-    static isErrorTimestamp(value) {
+
+    static isErrorTimestamp(value: any): boolean {
         if (value instanceof Date) {
+            return false
+        } else if (DateTimeUtil.isYYYYMMDD(`${value}`)) {
+            return false;
+        } else if (DateTimeUtil.isYYYYMMDDhhmiss(value)) {
             return false;
         }
-        else if (DateTimeUtil_1.default.isYYYYMMDD(`${value}`)) {
-            return false;
-        }
-        else if (DateTimeUtil_1.default.isYYYYMMDDhhmiss(value)) {
-            return false;
-        }
+
         return true;
     }
-    static isErrorTime(value) {
+
+    static isErrorTime(value: any): boolean {
         if (value instanceof Date) {
+            return false
+        }
+        if (DateTimeUtil.isHHMMSS(value)) {
+            return false;
+        } else if (DateTimeUtil.isHHMM(value)) {
             return false;
         }
-        if (DateTimeUtil_1.default.isHHMMSS(value)) {
-            return false;
-        }
-        else if (DateTimeUtil_1.default.isHHMM(value)) {
-            return false;
-        }
+
         return true;
     }
 }
-exports.default = ValidateValueUtil;

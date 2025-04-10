@@ -1,19 +1,19 @@
-import { TableModel } from "../TableModel";
-import { TAggregateFuncType, TColumnInfo } from "../Type";
-import SqlUtil from "./SqlUtils";
-
-export default class SelectExpression {
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const SqlUtils_1 = __importDefault(require("./SqlUtils"));
+class SelectExpression {
     /**
      * 指定されたカラム情報と関数を使用して、SQLのSELECT文を作成します。
      * @param columnInfoType カラム情報を含むオブジェクト。
      * @param func カラムに適用する関数名。nullの場合は関数を適用しません。
      * @returns SQLのSELECT文の文字列。
      */
-    static create(columnInfo: TColumnInfo, func: TAggregateFuncType | null = null, alias: string = '') : string {
-
-        const column = SqlUtil.getColumnInfo(columnInfo);
-        let select = ''
+    static create(columnInfo, func = null, alias = '') {
+        const column = SqlUtils_1.default.getColumnInfo(columnInfo);
+        let select = '';
         switch (column.type) {
             case 'date':
                 select = this.createDateTime(columnInfo, 'date');
@@ -25,10 +25,9 @@ export default class SelectExpression {
                 select = this.createDateTime(columnInfo, 'datetime');
                 break;
             default:
-                select = SqlUtil.getColumnInfo(columnInfo).expression;
+                select = SqlUtils_1.default.getColumnInfo(columnInfo).expression;
                 break;
         }
-
         let aliasName = alias.trim() !== '' ? alias : columnInfo.name;
         if (func !== null) {
             aliasName = alias.trim() !== '' ? alias : func + '_' + columnInfo.name;
@@ -43,10 +42,8 @@ export default class SelectExpression {
                     break;
             }
         }
-
         return `${select} as "${aliasName}"`;
     }
-
     /**
      * BaseModelからSELECTクエリを作成します。
      * @param baseModel クエリを作成するためのBaseModelオブジェクト。
@@ -54,15 +51,13 @@ export default class SelectExpression {
      * @param isExcludeSystemTime trueの場合、システム時間のカラムを除外します。
      * @returns 作成されたSELECTクエリの文字列。
      */
-    static createFromModel(model: TableModel) {
-        const queries: Array<string> = [];
+    static createFromModel(model) {
+        const queries = [];
         for (const key of Object.keys(model.Columns)) {
-            queries.push(this.create({model: model, name: key}));
+            queries.push(this.create({ model: model, name: key }));
         }
-
         return queries.join(',');
     }
-
     /**
      * Converts the specified column to a SQL string format.
      * 指定されたカラムをSQLの文字列形式に変換します。
@@ -73,8 +68,8 @@ export default class SelectExpression {
      * @returns The SQL string converted to the specified format.
      *          指定された形式に変換されたSQLの文字列。
      */
-    static createDateTime(column: string | TColumnInfo, to: 'date' | 'time' | 'datetime') {
-        const columnQuery = typeof column === 'string' ? column : SqlUtil.getColumnInfo(column).expression;
+    static createDateTime(column, to) {
+        const columnQuery = typeof column === 'string' ? column : SqlUtils_1.default.getColumnInfo(column).expression;
         switch (to) {
             case 'date':
                 return `to_char(${columnQuery}, 'YYYY-MM-DD')`;
@@ -85,3 +80,4 @@ export default class SelectExpression {
         }
     }
 }
+exports.default = SelectExpression;

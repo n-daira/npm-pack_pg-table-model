@@ -1,23 +1,13 @@
 import { PoolClient, Query } from 'pg';
-import { TColumnAttribute, TColumnType, TNestedCondition, TSelectExpression } from "./Type";
-import ToValueUtil from './Utils/ToValueUtil';
-import ValidateValueUtil from './Utils/ValidateValueUtil';
+import { TColumn, TColumnAttribute, TColumnType, TNestedCondition, TQuery, TSelectExpression } from "./Type";
+import ValidateValueUtil from './SqlUtils/ValidateValueUtil';
 import SelectExpression from './SqlUtils/SelectExpression';
 import QueryUtil from './SqlUtils/QueryUtil';
 
-// export type WhereCondition = string | {
-//     leftColumn: string | ColumnInfoType, 
-//     operator: OperatorParamType, 
-//     rightColumn: string | number | boolean | Date | Array<SqlValueParamType> | ColumnInfoType
-// };
-
-// whereOrメソッドで使用
-// export type NestedWhereCondition = WhereCondition | ['AND' | 'OR', ...NestedWhereCondition[]];
-
 export class TableModel {
 
-    protected columns: { [key: string]: { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute} } = {};
-    get Columns(): { [key: string]: { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute} } { 
+    protected columns: { [key: string]: TColumn } = {};
+    get Columns(): { [key: string]: TColumn } { 
         if (Object.keys(this.columns).length === 0) {
             throw new Error("TableModelのcolumnsを設定してください。")
         }
@@ -561,15 +551,8 @@ export class TableModel {
      * @returns 検索結果のデータ
      *          The data of the search result.
      */
-    public async find<T = {[key: string]: any}>(id: string | number, selectColumns: Array<string> | "*" | null = "*", selectExpressions: Array<TSelectExpression> | null = null): Promise<T | null> {
-        if ('id' in this.Columns === false) {
-            throw new Error("idがColumnsに設定されていません。");
-        }
-
-        const idColumn = this.Columns['id'];
-        if (idColumn.attribute !== 'primary') {
-            throw new Error("idはPrimary Keyとして設定されていません。");
-        }
+    public async findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null = "*", selectExpressions: Array<TSelectExpression> | null = null): Promise<T | null> {
+        ValidateValueUtil.validateId(this.Columns, id);
 
         let selects: Array<string> = [];
         if (selectColumns == "*") {
@@ -589,7 +572,7 @@ export class TableModel {
         }
 
         const sql = `SELECT ${selects.join(',')} FROM ${this.TableName} WHERE id = $1`;
-        let datas = await this.executeQuery(sql, [ToValueUtil.toValue(idColumn.type, id)]);
+        let datas = await this.executeQuery(sql, [id]);
 
         return datas.rowCount == 0 ? null : datas.rows[0] as T;
     }
@@ -635,8 +618,8 @@ export class TableModel {
             const name = (column.alias ?? '') === '' ? key : column.alias;
             if (ValidateValueUtil.isErrorValue(column.type, value)) {
                 switch (column.type) {
-                    case "string":    
-                        throw new Error("stringの場合、columnのlengthを指定してください。");
+                    case "string":
+                        this.throwValidationError(`${name}はstringまたはnumber型で入力してください`);
                     case 'uuid':
                         this.throwValidationError(`${name}はUUIDで入力してください。`);
                     case 'number':
@@ -692,14 +675,6 @@ export class TableModel {
      * @param connection データベース接続オブジェクト。デフォルトはConnection。
      */
     protected async validateUpdateId(id: any, options: {[key: string]: any}) : Promise<void> {
-        if ('id' in this.Columns === false) {
-            throw new Error("idがColumnsに設定されていません。");
-        }
-
-        const idColumn = this.Columns['id'];
-        if (idColumn.attribute !== 'primary') {
-            throw new Error("idはPrimary Keyとして設定されていません。");
-        }
     }
 
     /**
@@ -708,14 +683,6 @@ export class TableModel {
      * @param connection データベース接続オブジェクト。デフォルトはConnection。
      */
     protected async validateDeleteId(id: any) : Promise<void> {
-        if ('id' in this.Columns === false) {
-            throw new Error("idがColumnsに設定されていません。");
-        }
-
-        const idColumn = this.Columns['id'];
-        if (idColumn.attribute !== 'primary') {
-            throw new Error("idはPrimary Keyとして設定されていません。");
-        }
     }
 
     /**
@@ -729,7 +696,7 @@ export class TableModel {
         await this.validateInsert(options);
 
         const query = QueryUtil.createInsert(options, this.TableName);
-        await this.executeQuery(query.sql, query.vars);
+        await this.executeQuery(query);
     }
 
     /**
@@ -740,12 +707,13 @@ export class TableModel {
      * @returns 更新が成功したかどうかを示すブール値
      */
     public async executeUpdateId(id: any, options: {[key: string]: any}) : Promise<boolean> {
+        ValidateValueUtil.validateId(this.Columns, id);
         this.validateOptions(options, false);
         await this.validateUpdateId(id, options);
         // await this.validateUpdate(options, client);
         
         const query = QueryUtil.createUpdateId(id, options, this);
-        const data = await this.executeQuery(query.sql, query.vars);
+        const data = await this.executeQuery(query);
         return data.rowCount == 1;
     }
 
@@ -755,10 +723,11 @@ export class TableModel {
      * @returns datas
      */
     public async executeDeleteId(id: any) : Promise<boolean> {
+        ValidateValueUtil.validateId(this.Columns, id);
         await this.validateDeleteId(id);
         let sql = `DELETE FROM ${this.TableName} WHERE id = $1`;
 
-        const datas = await this.executeQuery(sql, [ToValueUtil.toValue(this.Columns['id'].type, id)]);
+        const datas = await this.executeQuery(sql, [id]);
         return datas.rowCount == 1;
     }
 
@@ -801,13 +770,15 @@ export class TableModel {
     //     return datas.rowCount;
     // }
 
+    protected executeQuery(param1: string, vars?: Array<any>) : Promise<any>;
+    protected executeQuery(param1: TQuery) : Promise<any>;
     /**
      * クエリの実行を行う
      * @param sql sql
      * @param client client
      * @returns クエリ実行結果
      */
-    protected async executeQuery(sql: string, values?: Array<any>) : Promise<any> {
+    protected async executeQuery(param1: string | TQuery, vars?: Array<any>) : Promise<any> {
 
         // if (process.env.IS_OUTPUT_SQL) {
         //     LoggerSql.info("--- Debug Sql ----------");
@@ -815,8 +786,15 @@ export class TableModel {
     
         //     LoggerSql.info(sql);
         // }
+        let sql = '';
+        if (typeof param1 === 'string') {
+            sql = param1;
+        } else {
+            sql = param1.sql;
+            vars = param1.vars;
+        }
 
-        const data = await this.client.query(sql, values);
+        const data = await this.client.query(sql, vars ?? []);
 
         // LoggerSql.info("実行結果");
         if (data.rowCount == 0) {

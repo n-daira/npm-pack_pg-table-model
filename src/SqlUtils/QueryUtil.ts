@@ -1,12 +1,11 @@
 import { TableModel } from "../TableModel";
-import ToValueUtil from "../Utils/ToValueUtil";
+import { TQuery } from "../Type";
 
 export default class QueryUtil {
 
     /**
      * Creates an SQL insert statement.
      * SQL挿入文を作成します。
-     * 
      * @param options The options for the insert operation.
      *                挿入のオプション。
      * @param tableName The name of the table to insert into.
@@ -14,7 +13,7 @@ export default class QueryUtil {
      * @returns An object containing the SQL string and the variables.
      *          SQL文字列と変数を含むオブジェクト。
      */
-    static createInsert(options: {[key: string]: any}, tableName: string) : {sql: string, vars: Array<any>} {
+    static createInsert(options: {[key: string]: any}, tableName: string) : TQuery {
         const insertColumns: Array<string> = [];
         const insertValues: Array<any> = [];
         const insertVar: Array<string> = [];
@@ -48,7 +47,7 @@ export default class QueryUtil {
      * @returns An object containing the SQL string and the variables.
      *          SQL文字列と変数を含むオブジェクト。
      */
-    static createUpdateId(id: any, options: {[key: string]: any}, tableModel: TableModel) : {sql: string, vars: Array<any>} {
+    static createUpdateId(id: any, options: {[key: string]: any}, tableModel: TableModel) : TQuery {
         const updateAlias: Array<string> = [];
         const vars: Array<any> = [];
 
@@ -70,7 +69,7 @@ export default class QueryUtil {
             updateAlias.push(`${key} = $${vars.length}`);
         }
 
-        vars.push(ToValueUtil.toValue(tableModel.Columns['id'].type, id));
+        vars.push(id);
         return {
             sql: `UPDATE ${tableModel.TableName} SET ${updateAlias.join(',')} WHERE id = $${vars.length}`,
             vars: vars

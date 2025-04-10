@@ -1,9 +1,5 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const ToValueUtil_1 = __importDefault(require("./ToValueUtil"));
 class SqlUtil {
     // /**
     //  * U01 WHERE句を生成するメソッド
@@ -107,26 +103,25 @@ class SqlUtil {
     //     }
     //     return `${leftColumn.ColumnQuery} ${operator} CURRENT_${date}`;
     // }
-    /**
-     * U02 SQLの登録、編集時の値を変換
-     * @param {string} key キー
-     * @param {string | number} value 値
-     */
-    static toSqlValue(type, attribute, value) {
-        if (value === undefined) {
-            throw new Error(`valueにundefinedは挿入しないでください。`);
-        }
-        // nullチェック
-        if (value === null) {
-            if (attribute === "nullable") {
-                return 'null';
-            }
-            else {
-                throw new Error(`${attribute}のカラムにnullを挿入することはできません。(value : ${value})`);
-            }
-        }
-        return ToValueUtil_1.default.toValue(type, value);
-    }
+    // /**
+    //  * U02 SQLの登録、編集時の値を変換
+    //  * @param {string} key キー
+    //  * @param {string | number} value 値
+    //  */
+    // static toSqlValue(type: TColumnType, attribute: TColumnAttribute, value: any) : string {
+    //     if (value === undefined) {
+    //         throw new Error(`valueにundefinedは挿入しないでください。`);
+    //     }
+    //     // nullチェック
+    //     if (value === null) {
+    //         if (attribute === "nullable") {
+    //             return 'null';
+    //         } else {
+    //             throw new Error(`${attribute}のカラムにnullを挿入することはできません。(value : ${value})`);
+    //         }
+    //     }
+    //     return ToValueUtil.toValue(type, value);
+    // }
     /**
      * 半角文字を全角に変換するSQL文
      * @param {string} columnName カラム名

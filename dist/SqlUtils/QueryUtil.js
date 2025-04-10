@@ -1,14 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const ToValueUtil_1 = __importDefault(require("../Utils/ToValueUtil"));
 class QueryUtil {
     /**
      * Creates an SQL insert statement.
      * SQL挿入文を作成します。
-     *
      * @param options The options for the insert operation.
      *                挿入のオプション。
      * @param tableName The name of the table to insert into.
@@ -63,7 +58,7 @@ class QueryUtil {
             vars.push(value);
             updateAlias.push(`${key} = $${vars.length}`);
         }
-        vars.push(ToValueUtil_1.default.toValue(tableModel.Columns['id'].type, id));
+        vars.push(id);
         return {
             sql: `UPDATE ${tableModel.TableName} SET ${updateAlias.join(',')} WHERE id = $${vars.length}`,
             vars: vars

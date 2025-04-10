@@ -1,5 +1,4 @@
 import { TColumnAttribute, TColumnInfo, TColumnType, TOperator } from "../Type";
-import ToValueUtil from './ToValueUtil';
 
 export type SqlValueParamType = string | number | boolean | Date | null;
 

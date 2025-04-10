@@ -13,9 +13,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TableModel = void 0;
-const ToValueUtil_1 = __importDefault(require("./Utils/ToValueUtil"));
 const ValidateValueUtil_1 = __importDefault(require("./Utils/ValidateValueUtil"));
-const SelectAlias_1 = __importDefault(require("./SqlUtils/SelectAlias"));
+const SelectExpression_1 = __importDefault(require("./SqlUtils/SelectExpression"));
 const QueryUtil_1 = __importDefault(require("./SqlUtils/QueryUtil"));
 // export type WhereCondition = string | {
 //     leftColumn: string | ColumnInfoType, 
@@ -484,33 +483,27 @@ class TableModel {
      * @returns 検索結果のデータ
      *          The data of the search result.
      */
-    find(id_1) {
-        return __awaiter(this, arguments, void 0, function* (id, selectColumns = "*", selectAliases = null) {
-            if ('id' in this.Columns === false) {
-                throw new Error("idがColumnsに設定されていません。");
-            }
-            const idColumn = this.Columns['id'];
-            if (idColumn.attribute !== 'primary') {
-                throw new Error("idはPrimary Keyとして設定されていません。");
-            }
+    findId(id_1) {
+        return __awaiter(this, arguments, void 0, function* (id, selectColumns = "*", selectExpressions = null) {
+            ValidateValueUtil_1.default.validateId(this.Columns, id);
             let selects = [];
             if (selectColumns == "*") {
                 for (const key of Object.keys(this.Columns)) {
-                    selects.push(SelectAlias_1.default.create({ model: this, name: key }));
+                    selects.push(SelectExpression_1.default.create({ model: this, name: key }));
                 }
             }
             else if (selectColumns != null) {
                 for (const key of selectColumns) {
-                    selects.push(SelectAlias_1.default.create({ model: this, name: key }));
+                    selects.push(SelectExpression_1.default.create({ model: this, name: key }));
                 }
             }
-            if (selectAliases != null) {
-                for (const alias of selectAliases) {
-                    selects.push(`${alias.alias} as "${alias.as}"`);
+            if (selectExpressions != null) {
+                for (const expression of selectExpressions) {
+                    selects.push(`${expression.expression} as "${expression.alias}"`);
                 }
             }
             const sql = `SELECT ${selects.join(',')} FROM ${this.TableName} WHERE id = $1`;
-            let datas = yield this.executeQuery(sql, [ToValueUtil_1.default.toValue(idColumn.type, id)]);
+            let datas = yield this.executeQuery(sql, [id]);
             return datas.rowCount == 0 ? null : datas.rows[0];
         });
     }
@@ -552,7 +545,7 @@ class TableModel {
             if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
                 switch (column.type) {
                     case "string":
-                        throw new Error("stringの場合、columnのlengthを指定してください。");
+                        this.throwValidationError(`${name}はstringまたはnumber型で入力してください`);
                     case 'uuid':
                         this.throwValidationError(`${name}はUUIDで入力してください。`);
                     case 'number':
@@ -608,13 +601,6 @@ class TableModel {
      */
     validateUpdateId(id, options) {
         return __awaiter(this, void 0, void 0, function* () {
-            if ('id' in this.Columns === false) {
-                throw new Error("idがColumnsに設定されていません。");
-            }
-            const idColumn = this.Columns['id'];
-            if (idColumn.attribute !== 'primary') {
-                throw new Error("idはPrimary Keyとして設定されていません。");
-            }
         });
     }
     /**
@@ -624,13 +610,6 @@ class TableModel {
      */
     validateDeleteId(id) {
         return __awaiter(this, void 0, void 0, function* () {
-            if ('id' in this.Columns === false) {
-                throw new Error("idがColumnsに設定されていません。");
-            }
-            const idColumn = this.Columns['id'];
-            if (idColumn.attribute !== 'primary') {
-                throw new Error("idはPrimary Keyとして設定されていません。");
-            }
         });
     }
     /**
@@ -644,7 +623,7 @@ class TableModel {
             this.validateOptions(options, true);
             yield this.validateInsert(options);
             const query = QueryUtil_1.default.createInsert(options, this.TableName);
-            yield this.executeQuery(query.sql, query.vars);
+            yield this.executeQuery(query);
         });
     }
     /**
@@ -656,11 +635,12 @@ class TableModel {
      */
     executeUpdateId(id, options) {
         return __awaiter(this, void 0, void 0, function* () {
+            ValidateValueUtil_1.default.validateId(this.Columns, id);
             this.validateOptions(options, false);
             yield this.validateUpdateId(id, options);
             // await this.validateUpdate(options, client);
             const query = QueryUtil_1.default.createUpdateId(id, options, this);
-            const data = yield this.executeQuery(query.sql, query.vars);
+            const data = yield this.executeQuery(query);
             return data.rowCount == 1;
         });
     }
@@ -671,59 +651,35 @@ class TableModel {
      */
     executeDeleteId(id) {
         return __awaiter(this, void 0, void 0, function* () {
+            ValidateValueUtil_1.default.validateId(this.Columns, id);
             yield this.validateDeleteId(id);
             let sql = `DELETE FROM ${this.TableName} WHERE id = $1`;
-            const datas = yield this.executeQuery(sql, [ToValueUtil_1.default.toValue(this.Columns['id'].type, id)]);
+            const datas = yield this.executeQuery(sql, [id]);
             return datas.rowCount == 1;
         });
     }
-    // /**
-    //  * SQL文の実行
-    //  * @param connection connection 
-    //  * @returns datas
-    //  */
-    // public async executeDelete(client: PoolClient) : Promise<number> {
-    //     let sql = `DELETE FROM ${this.TableName}`;
-    //     if (this.joinConditions.length > 0) {
-    //         // JOIN句ではUSING句を使用して削除する方法はあるが、使用する時に実装します。
-    //         // SQL例
-    //         // DELETE FROM table1
-    //         // USING table2
-    //         // WHERE table1.foreign_key = table2.id
-    //         // AND table2.some_column = 'some_value';
-    //         // this.joinConditions.forEach((joinCondition: { 
-    //         //     type: 'left' | 'inner',
-    //         //     joinBaseModel: BaseModel,
-    //         //     conditions: Array<string>
-    //         //     }) => {
-    //         //     sql += {
-    //         //         'left' : " LEFT OUTER JOIN ",
-    //         //         'inner' : " INNER JOIN "
-    //         //     }[joinCondition.type];
-    //         //     sql += `${joinCondition.joinBaseModel.TableName} as "${joinCondition.joinBaseModel.AsTableName}" ON `;
-    //         //     sql += joinCondition.conditions.join(" AND ");
-    //         // })
-    //     }
-    //     if (this.whereConditions.length > 0) {
-    //         sql += " WHERE " + this.whereConditions.join(" AND ");
-    //     }
-    //     const datas = await this.executeQuery(sql, client);
-    //     return datas.rowCount;
-    // }
     /**
      * クエリの実行を行う
      * @param sql sql
      * @param client client
      * @returns クエリ実行結果
      */
-    executeQuery(sql, values) {
+    executeQuery(param1, vars) {
         return __awaiter(this, void 0, void 0, function* () {
             // if (process.env.IS_OUTPUT_SQL) {
             //     LoggerSql.info("--- Debug Sql ----------");
             //     LoggerSql.info("SQL文");
             //     LoggerSql.info(sql);
             // }
-            const data = yield this.client.query(sql, values);
+            let sql = '';
+            if (typeof param1 === 'string') {
+                sql = param1;
+            }
+            else {
+                sql = param1.sql;
+                vars = param1.vars;
+            }
+            const data = yield this.client.query(sql, vars !== null && vars !== void 0 ? vars : []);
             // LoggerSql.info("実行結果");
             if (data.rowCount == 0) {
                 // LoggerSql.info("- データなし");

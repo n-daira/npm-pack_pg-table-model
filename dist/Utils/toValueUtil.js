@@ -16,29 +16,32 @@ class ToValueUtil {
      * @returns The converted value.
      * 変換された値。
      */
-    static toValue(columnType, value) {
-        if (value === null) {
-            return 'null';
-        }
-        switch (columnType) {
-            case "string":
-                return this.toString(value);
-            case "uuid":
-                return this.toUUID(value);
-            case "date":
-                return this.toDate(value);
-            case "time":
-                return this.toTime(value);
-            case "timestamp":
-                return this.toDateTime(value);
-            case "number":
-                return this.toNumber(value);
-            case "bool":
-                return this.toBool(value);
-            default:
-                throw new Error(`指定したColumnTypeEnumは存在しません。(${columnType})`);
-        }
-    }
+    // static toValue(column: TColumn, value: any) {
+    //     if (value === null) {
+    //         if (column.attribute === 'nullable') {
+    //             return null;
+    //         }
+    //         throw new Error(`指定したColumnはNull許容していません。(${column.attribute})`);
+    //     }
+    //     switch (column.type) {
+    //         case "string":
+    //             return this.toString(value);
+    //         case "uuid":
+    //             return this.toUUID(value);
+    //         case "date":
+    //             return this.toDate(value);
+    //         case "time":
+    //             return this.toTime(value);
+    //         case "timestamp":
+    //             return this.toDateTime(value);
+    //         case "number":
+    //             return this.toNumber(value);
+    //         case "bool":
+    //             return this.toBool(value);
+    //         default:
+    //             throw new Error(`指定したColumnTypeEnumは存在しません。(${column.type})`);
+    //     }
+    // }
     /**
      * Converts the specified value to a string format.
      * 指定された値を文字列形式に変換します。
