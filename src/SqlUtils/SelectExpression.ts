@@ -1,8 +1,8 @@
 import { TableModel } from "../TableModel";
-import { AggregateFuncType, TColumnInfo } from "../Type";
+import { TAggregateFuncType, TColumnInfo } from "../Type";
 import SqlUtil from "./SqlUtils";
 
-export default class SelectAlias {
+export default class SelectExpression {
 
     /**
      * 指定されたカラム情報と関数を使用して、SQLのSELECT文を作成します。
@@ -10,7 +10,7 @@ export default class SelectAlias {
      * @param func カラムに適用する関数名。nullの場合は関数を適用しません。
      * @returns SQLのSELECT文の文字列。
      */
-    static create(columnInfo: TColumnInfo, func: AggregateFuncType | null = null, as: string = '') : string {
+    static create(columnInfo: TColumnInfo, func: TAggregateFuncType | null = null, as: string = '') : string {
 
         const column = SqlUtil.getColumnInfo(columnInfo);
         let select = ''
@@ -47,7 +47,6 @@ export default class SelectAlias {
 
         return `${select} as "${asName}"`;
     }
-
 
     /**
      * BaseModelからSELECTクエリを作成します。

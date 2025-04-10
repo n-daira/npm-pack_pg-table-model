@@ -5,7 +5,7 @@ export default class QueryUtil {
 
     /**
      * Creates an SQL insert statement.
-     * SQL��入文を作成します。
+     * SQL挿入文を作成します。
      * 
      * @param options The options for the insert operation.
      *                挿入のオプション。

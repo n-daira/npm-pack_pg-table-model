@@ -7,7 +7,6 @@ export default class NumberUtil {
      * @returns {boolean} - Whether the value is a number. ��が数値であるかどうか。
      */
     static isNumber(value: any) {
-
         if (value == null) {
             return false;
         } else if (value instanceof Date) { 

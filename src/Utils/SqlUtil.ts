@@ -126,28 +126,28 @@ export default class SqlUtil {
     // }
 
 
-    /**
-     * U02 SQLの登録、編集時の値を変換
-     * @param {string} key キー
-     * @param {string | number} value 値
-     */
-    static toSqlValue(type: TColumnType, attribute: TColumnAttribute, value: any) : string {
+    // /**
+    //  * U02 SQLの登録、編集時の値を変換
+    //  * @param {string} key キー
+    //  * @param {string | number} value 値
+    //  */
+    // static toSqlValue(type: TColumnType, attribute: TColumnAttribute, value: any) : string {
 
-        if (value === undefined) {
-            throw new Error(`valueにundefinedは挿入しないでください。`);
-        }
+    //     if (value === undefined) {
+    //         throw new Error(`valueにundefinedは挿入しないでください。`);
+    //     }
 
-        // nullチェック
-        if (value === null) {
-            if (attribute === "nullable") {
-                return 'null';
-            } else {
-                throw new Error(`${attribute}のカラムにnullを挿入することはできません。(value : ${value})`);
-            }
-        }
+    //     // nullチェック
+    //     if (value === null) {
+    //         if (attribute === "nullable") {
+    //             return 'null';
+    //         } else {
+    //             throw new Error(`${attribute}のカラムにnullを挿入することはできません。(value : ${value})`);
+    //         }
+    //     }
 
-        return ToValueUtil.toValue(type, value);
-    }
+    //     return ToValueUtil.toValue(type, value);
+    // }
 
     /**
      * 半角文字を全角に変換するSQL文

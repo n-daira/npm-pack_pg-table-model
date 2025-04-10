@@ -7,10 +7,10 @@ const ToValueUtil_1 = __importDefault(require("../Utils/ToValueUtil"));
 class QueryUtil {
     /**
      * Creates an SQL insert statement.
-     * SQL��入文を作成します。
+     * SQL挿入文を作成します。
      *
      * @param options The options for the insert operation.
-     *                ��入操作のオプション。
+     *                挿入のオプション。
      * @param tableName The name of the table to insert into.
      *                  挿入するテーブルの名前。
      * @returns An object containing the SQL string and the variables.
@@ -33,6 +33,19 @@ class QueryUtil {
             vars: insertValues
         };
     }
+    /**
+     * Updates a record by its ID.
+     * IDでレコードを更新します。
+     *
+     * @param id The ID of the record to update.
+     *           更新するレコードのID。
+     * @param options The options for the update operation.
+     *                更新のオプション。
+     * @param tableModel The table model instance.
+     *                   テーブルモデルのインスタンス。
+     * @returns An object containing the SQL string and the variables.
+     *          SQL文字列と変数を含むオブジェクト。
+     */
     static createUpdateId(id, options, tableModel) {
         const updateAlias = [];
         const vars = [];

@@ -200,7 +200,7 @@ class TableModel {
     //  * 複数の条件をANDまたはORで結合してWHERE句に追加します。
     //  * @param conditions 条件の配列。各条件はNestedConditionTypeとして指定します。
     //  */
-    // public whereOrAnd(conditions: Array<NestedConditionType>) {
+    // public whereOrAnd(conditions: Array<TNestedCondition>) {
     //     this.whereConditions.push(this.createCondition(conditions, this));
     // }
     // /**
@@ -529,7 +529,8 @@ class TableModel {
      * @param options 検証するオプションのオブジェクト
      * @param options The object containing options to validate
      */
-    validateOptions(options) {
+    validateOptions(options, isInsert) {
+        var _a;
         for (const [key, value] of Object.entries(options)) {
             if (key in this.Columns === false) {
                 throw new Error(`${key}は${this.TableName}テーブルに存在しません。`);
@@ -538,28 +539,32 @@ class TableModel {
                 continue;
             }
             const column = this.Columns[key];
+            if (isInsert === false && column.attribute === 'primary') {
+                throw new Error(`${this.TableName}.${key}はprimary keyのため、変更できません。`);
+            }
             if (value === null) {
                 if (column.attribute === 'nullable') {
                     continue;
                 }
                 this.throwValidationError(`${this.tableName}.${key}はNULL許容されていないカラムです。`);
             }
+            const name = ((_a = column.alias) !== null && _a !== void 0 ? _a : '') === '' ? key : column.alias;
             if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
                 switch (column.type) {
                     case "string":
                         throw new Error("stringの場合、columnのlengthを指定してください。");
                     case 'uuid':
-                        this.throwValidationError(`${column.name}はUUIDで入力してください。`);
+                        this.throwValidationError(`${name}はUUIDで入力してください。`);
                     case 'number':
-                        this.throwValidationError(`${column.name}は数値で入力してください。`);
+                        this.throwValidationError(`${name}は数値で入力してください。`);
                     case 'bool':
-                        this.throwValidationError(`${column.name}はbool型,"true","false",0,1のいずれかで入力してください。`);
+                        this.throwValidationError(`${name}はbool型,"true","false",0,1のいずれかで入力してください。`);
                     case 'date':
-                        this.throwValidationError(`${column.name}は"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型で入力してください。`);
+                        this.throwValidationError(`${name}は"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型で入力してください。`);
                     case 'time':
-                        this.throwValidationError(`${column.name}は"hh:mi"形式または"hh:mi:ss"形式で入力してください。`);
+                        this.throwValidationError(`${name}は"hh:mi"形式または"hh:mi:ss"形式で入力してください。`);
                     case 'timestamp':
-                        this.throwValidationError(`${column.name}は"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型で入力してください。`);
+                        this.throwValidationError(`${name}は"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型で入力してください。`);
                 }
             }
             if (column.type === 'string') {
@@ -567,7 +572,7 @@ class TableModel {
                     throw new Error("stringの場合、columnのlengthを指定してください。");
                 }
                 if (value.toString().length > column.length) {
-                    this.throwValidationError(`${column.name}は${column.length}文字以内で入力してください。`);
+                    this.throwValidationError(`${name}は${column.length}文字以内で入力してください。`);
                 }
             }
         }
@@ -582,29 +587,17 @@ class TableModel {
      */
     validateInsert(options) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             for (const columnKey in this.Columns) {
                 const column = this.Columns[columnKey];
+                const name = ((_a = column.alias) !== null && _a !== void 0 ? _a : '') === '' ? columnKey : column.alias;
                 if (options[columnKey] === undefined || options[columnKey] === null) {
                     // Null許容されていないカラムにNULLを入れようとしているか？
                     if (column.attribute === "primary" || column.attribute === "noDefault") {
-                        this.throwValidationError(`${column.name}を入力してください。`);
+                        this.throwValidationError(`${name}を入力してください。`);
                     }
                 }
             }
-        });
-    }
-    /**
-     * Executes an insert operation with the provided options.
-     * 指定されたオプションで��入操作を実行します。
-     * @param options The options for the insert operation.
-     * ��入操作のオプション。
-     */
-    executeInsert(options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.validateOptions(options);
-            yield this.validateInsert(options);
-            const query = QueryUtil_1.default.createInsert(options, this.TableName);
-            yield this.executeQuery(query.sql, query.vars);
         });
     }
     /**
@@ -625,6 +618,36 @@ class TableModel {
         });
     }
     /**
+     * 指定されたIDのレコードを削除する前のバリデーションを行います。
+     * @param id 削除対象のレコードのID
+     * @param connection データベース接続オブジェクト。デフォルトはConnection。
+     */
+    validateDeleteId(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if ('id' in this.Columns === false) {
+                throw new Error("idがColumnsに設定されていません。");
+            }
+            const idColumn = this.Columns['id'];
+            if (idColumn.attribute !== 'primary') {
+                throw new Error("idはPrimary Keyとして設定されていません。");
+            }
+        });
+    }
+    /**
+     * Executes an insert operation with the provided options.
+     * 指定されたオプションで��入操作を実行します。
+     * @param options The options for the insert operation.
+     * ��入操作のオプション。
+     */
+    executeInsert(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.validateOptions(options, true);
+            yield this.validateInsert(options);
+            const query = QueryUtil_1.default.createInsert(options, this.TableName);
+            yield this.executeQuery(query.sql, query.vars);
+        });
+    }
+    /**
      * 指定されたIDのレコードを更新
      * @param id 更新対象のレコードのID
      * @param updates 更新する値のオブジェクト。キーはカラム名、値は更新する値。
@@ -633,12 +656,25 @@ class TableModel {
      */
     executeUpdateId(id, options) {
         return __awaiter(this, void 0, void 0, function* () {
-            this.validateOptions(options);
+            this.validateOptions(options, false);
             yield this.validateUpdateId(id, options);
             // await this.validateUpdate(options, client);
             const query = QueryUtil_1.default.createUpdateId(id, options, this);
             const data = yield this.executeQuery(query.sql, query.vars);
             return data.rowCount == 1;
+        });
+    }
+    /**
+     * SQL文の実行
+     * @param connection connection
+     * @returns datas
+     */
+    executeDeleteId(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.validateDeleteId(id);
+            let sql = `DELETE FROM ${this.TableName} WHERE id = $1`;
+            const datas = yield this.executeQuery(sql, [ToValueUtil_1.default.toValue(this.Columns['id'].type, id)]);
+            return datas.rowCount == 1;
         });
     }
     // /**
@@ -673,27 +709,6 @@ class TableModel {
     //     }
     //     const datas = await this.executeQuery(sql, client);
     //     return datas.rowCount;
-    // }
-    // /**
-    //  * 指定されたIDのレコードを削除する前のバリデーションを行います。
-    //  * @param id 削除対象のレコードのID
-    //  * @param connection データベース接続オブジェクト。デフォルトはConnection。
-    //  */
-    // protected async validateDeleteId(id: string, client: PoolClient) : Promise<void> {
-    //     if (StringUtil.isErrorRegrex(RegexPatternEnum.uuid, id)) {
-    //         throw new InputErrorException("M00-U13", `idの形式が不正です。`);
-    //     }
-    // }
-    // /**
-    //  * SQL文の実行
-    //  * @param connection connection 
-    //  * @returns datas
-    //  */
-    // public async executeDeleteId(id: string, client: PoolClient) : Promise<boolean> {
-    //     await this.validateDeleteId(id, client);
-    //     let sql = `DELETE FROM ${this.TableName} WHERE id = '${id}'`;
-    //     const datas = await this.executeQuery(sql, client);
-    //     return datas.rowCount == 1;
     // }
     /**
      * クエリの実行を行う

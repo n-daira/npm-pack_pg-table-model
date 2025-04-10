@@ -1,8 +1,8 @@
 import { PoolClient, Query } from 'pg';
-import { TColumnAttribute, TColumnType, TSelectAlias } from "./Type";
+import { TColumnAttribute, TColumnType, TNestedCondition, TSelectExpression } from "./Type";
 import ToValueUtil from './Utils/ToValueUtil';
 import ValidateValueUtil from './Utils/ValidateValueUtil';
-import SelectAlias from './SqlUtils/SelectAlias';
+import SelectExpression from './SqlUtils/SelectExpression';
 import QueryUtil from './SqlUtils/QueryUtil';
 
 // export type WhereCondition = string | {
@@ -16,8 +16,8 @@ import QueryUtil from './SqlUtils/QueryUtil';
 
 export class TableModel {
 
-    protected columns: { [key: string]: {name: string, type: TColumnType, length?: number, attribute: TColumnAttribute} } = {};
-    get Columns(): { [key: string]: {name: string, type: TColumnType, length?: number, attribute: TColumnAttribute} } { 
+    protected columns: { [key: string]: { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute} } = {};
+    get Columns(): { [key: string]: { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute} } { 
         if (Object.keys(this.columns).length === 0) {
             throw new Error("TableModelのcolumnsを設定してください。")
         }
@@ -221,7 +221,7 @@ export class TableModel {
     //  * 複数の条件をANDまたはORで結合してWHERE句に追加します。
     //  * @param conditions 条件の配列。各条件はNestedConditionTypeとして指定します。
     //  */
-    // public whereOrAnd(conditions: Array<NestedConditionType>) {
+    // public whereOrAnd(conditions: Array<TNestedCondition>) {
     //     this.whereConditions.push(this.createCondition(conditions, this));
     // }
 
@@ -561,7 +561,7 @@ export class TableModel {
      * @returns 検索結果のデータ
      *          The data of the search result.
      */
-    public async find<T = {[key: string]: any}>(id: string | number, selectColumns: Array<string> | "*" | null = "*", selectAliases: Array<TSelectAlias> | null = null): Promise<T | null> {
+    public async find<T = {[key: string]: any}>(id: string | number, selectColumns: Array<string> | "*" | null = "*", selectExpressions: Array<TSelectExpression> | null = null): Promise<T | null> {
         if ('id' in this.Columns === false) {
             throw new Error("idがColumnsに設定されていません。");
         }
@@ -574,17 +574,17 @@ export class TableModel {
         let selects: Array<string> = [];
         if (selectColumns == "*") {
             for (const key of Object.keys(this.Columns)) {
-                selects.push(SelectAlias.create({model: this, name: key}));
+                selects.push(SelectExpression.create({model: this, name: key}));
             }
         } else if (selectColumns != null) {
             for (const key of selectColumns) {
-                selects.push(SelectAlias.create({model: this, name: key}));
+                selects.push(SelectExpression.create({model: this, name: key}));
             }
         }
 
-        if (selectAliases != null) {
-            for (const alias of selectAliases) {
-                selects.push(`${alias.alias} as "${alias.as}"`);
+        if (selectExpressions != null) {
+            for (const expression of selectExpressions) {
+                selects.push(`${expression.expression} as "${expression.alias}"`);
             }
         }
 
@@ -610,7 +610,7 @@ export class TableModel {
      * @param options 検証するオプションのオブジェクト
      * @param options The object containing options to validate
      */
-    protected validateOptions(options: {[key: string]: any}): void {
+    protected validateOptions(options: {[key: string]: any}, isInsert: boolean): void {
         for (const [key, value] of Object.entries(options)) {
             if (key in this.Columns === false) {
                 throw new Error(`${key}は${this.TableName}テーブルに存在しません。`);
@@ -621,6 +621,10 @@ export class TableModel {
             }
 
             const column = this.Columns[key];
+            if (isInsert === false && column.attribute === 'primary') {
+                throw new Error(`${this.TableName}.${key}はprimary keyのため、変更できません。`);
+            }
+
             if (value === null) {
                 if (column.attribute === 'nullable') {
                     continue;
@@ -628,22 +632,23 @@ export class TableModel {
                 this.throwValidationError(`${this.tableName}.${key}はNULL許容されていないカラムです。`);
             }
 
+            const name = (column.alias ?? '') === '' ? key : column.alias;
             if (ValidateValueUtil.isErrorValue(column.type, value)) {
                 switch (column.type) {
                     case "string":    
                         throw new Error("stringの場合、columnのlengthを指定してください。");
                     case 'uuid':
-                        this.throwValidationError(`${column.name}はUUIDで入力してください。`);
+                        this.throwValidationError(`${name}はUUIDで入力してください。`);
                     case 'number':
-                        this.throwValidationError(`${column.name}は数値で入力してください。`);
+                        this.throwValidationError(`${name}は数値で入力してください。`);
                     case 'bool':
-                        this.throwValidationError(`${column.name}はbool型,"true","false",0,1のいずれかで入力してください。`)
+                        this.throwValidationError(`${name}はbool型,"true","false",0,1のいずれかで入力してください。`)
                     case 'date':
-                        this.throwValidationError(`${column.name}は"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型で入力してください。`);
+                        this.throwValidationError(`${name}は"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型で入力してください。`);
                     case 'time':
-                        this.throwValidationError(`${column.name}は"hh:mi"形式または"hh:mi:ss"形式で入力してください。`);
+                        this.throwValidationError(`${name}は"hh:mi"形式または"hh:mi:ss"形式で入力してください。`);
                     case 'timestamp':
-                        this.throwValidationError(`${column.name}は"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型で入力してください。`);
+                        this.throwValidationError(`${name}は"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型で入力してください。`);
                 }
             }
 
@@ -653,7 +658,7 @@ export class TableModel {
                 }
 
                 if (value.toString().length > column.length) {
-                    this.throwValidationError(`${column.name}は${column.length}文字以内で入力してください。`);
+                    this.throwValidationError(`${name}は${column.length}文字以内で入力してください。`);
                 }
             }
         }
@@ -670,27 +675,14 @@ export class TableModel {
     protected async validateInsert(options: {[key: string]: any}) : Promise<void> {
         for (const columnKey in this.Columns) {
             const column = this.Columns[columnKey];
+            const name = (column.alias ?? '') === '' ? columnKey : column.alias;
             if (options[columnKey] === undefined || options[columnKey] === null) {
                 // Null許容されていないカラムにNULLを入れようとしているか？
                 if (column.attribute === "primary" || column.attribute === "noDefault") {
-                    this.throwValidationError(`${column.name}を入力してください。`);
+                    this.throwValidationError(`${name}を入力してください。`);
                 }
             }
         }
-    }
-
-    /**
-     * Executes an insert operation with the provided options.
-     * 指定されたオプションで��入操作を実行します。
-     * @param options The options for the insert operation.
-     * ��入操作のオプション。
-     */
-    public async executeInsert(options: {[key: string]: any}) : Promise<void> {
-        this.validateOptions(options);
-        await this.validateInsert(options);
-
-        const query = QueryUtil.createInsert(options, this.TableName);
-        await this.executeQuery(query.sql, query.vars);
     }
 
     /**
@@ -699,7 +691,7 @@ export class TableModel {
      * @param updates 更新する値のオブジェクト。キーはカラム名、値は更新する値。
      * @param connection データベース接続オブジェクト。デフォルトはConnection。
      */
-    protected async validateUpdateId(id: string, options: {[key: string]: any}) : Promise<void> {
+    protected async validateUpdateId(id: any, options: {[key: string]: any}) : Promise<void> {
         if ('id' in this.Columns === false) {
             throw new Error("idがColumnsに設定されていません。");
         }
@@ -711,6 +703,36 @@ export class TableModel {
     }
 
     /**
+     * 指定されたIDのレコードを削除する前のバリデーションを行います。
+     * @param id 削除対象のレコードのID
+     * @param connection データベース接続オブジェクト。デフォルトはConnection。
+     */
+    protected async validateDeleteId(id: any) : Promise<void> {
+        if ('id' in this.Columns === false) {
+            throw new Error("idがColumnsに設定されていません。");
+        }
+
+        const idColumn = this.Columns['id'];
+        if (idColumn.attribute !== 'primary') {
+            throw new Error("idはPrimary Keyとして設定されていません。");
+        }
+    }
+
+    /**
+     * Executes an insert operation with the provided options.
+     * 指定されたオプションで��入操作を実行します。
+     * @param options The options for the insert operation.
+     * ��入操作のオプション。
+     */
+    public async executeInsert(options: {[key: string]: any}) : Promise<void> {
+        this.validateOptions(options, true);
+        await this.validateInsert(options);
+
+        const query = QueryUtil.createInsert(options, this.TableName);
+        await this.executeQuery(query.sql, query.vars);
+    }
+
+    /**
      * 指定されたIDのレコードを更新
      * @param id 更新対象のレコードのID
      * @param updates 更新する値のオブジェクト。キーはカラム名、値は更新する値。
@@ -718,13 +740,26 @@ export class TableModel {
      * @returns 更新が成功したかどうかを示すブール値
      */
     public async executeUpdateId(id: any, options: {[key: string]: any}) : Promise<boolean> {
-        this.validateOptions(options);
+        this.validateOptions(options, false);
         await this.validateUpdateId(id, options);
         // await this.validateUpdate(options, client);
         
         const query = QueryUtil.createUpdateId(id, options, this);
         const data = await this.executeQuery(query.sql, query.vars);
         return data.rowCount == 1;
+    }
+
+    /**
+     * SQL文の実行
+     * @param connection connection 
+     * @returns datas
+     */
+    public async executeDeleteId(id: any) : Promise<boolean> {
+        await this.validateDeleteId(id);
+        let sql = `DELETE FROM ${this.TableName} WHERE id = $1`;
+
+        const datas = await this.executeQuery(sql, [ToValueUtil.toValue(this.Columns['id'].type, id)]);
+        return datas.rowCount == 1;
     }
 
     // /**
@@ -764,32 +799,6 @@ export class TableModel {
 
     //     const datas = await this.executeQuery(sql, client);
     //     return datas.rowCount;
-    // }
-
-    // /**
-    //  * 指定されたIDのレコードを削除する前のバリデーションを行います。
-    //  * @param id 削除対象のレコードのID
-    //  * @param connection データベース接続オブジェクト。デフォルトはConnection。
-    //  */
-    // protected async validateDeleteId(id: string, client: PoolClient) : Promise<void> {
-    //     if (StringUtil.isErrorRegrex(RegexPatternEnum.uuid, id)) {
-    //         throw new InputErrorException("M00-U13", `idの形式が不正です。`);
-    //     }
-    // }
-
-    // /**
-    //  * SQL文の実行
-    //  * @param connection connection 
-    //  * @returns datas
-    //  */
-    // public async executeDeleteId(id: string, client: PoolClient) : Promise<boolean> {
-
-    //     await this.validateDeleteId(id, client);
-
-    //     let sql = `DELETE FROM ${this.TableName} WHERE id = '${id}'`;
-
-    //     const datas = await this.executeQuery(sql, client);
-    //     return datas.rowCount == 1;
     // }
 
     /**
