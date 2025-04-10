@@ -13,16 +13,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TableModel = void 0;
-const ValidateValueUtil_1 = __importDefault(require("./Utils/ValidateValueUtil"));
+const ValidateValueUtil_1 = __importDefault(require("./SqlUtils/ValidateValueUtil"));
 const SelectExpression_1 = __importDefault(require("./SqlUtils/SelectExpression"));
 const QueryUtil_1 = __importDefault(require("./SqlUtils/QueryUtil"));
-// export type WhereCondition = string | {
-//     leftColumn: string | ColumnInfoType, 
-//     operator: OperatorParamType, 
-//     rightColumn: string | number | boolean | Date | Array<SqlValueParamType> | ColumnInfoType
-// };
-// whereOrメソッドで使用
-// export type NestedWhereCondition = WhereCondition | ['AND' | 'OR', ...NestedWhereCondition[]];
+const WhereExpression_1 = __importDefault(require("./SqlUtils/WhereExpression"));
+const SqlUtils_1 = __importDefault(require("./SqlUtils/SqlUtils"));
 class TableModel {
     get Columns() {
         if (Object.keys(this.columns).length === 0) {
@@ -51,8 +46,20 @@ class TableModel {
                 sql += joinCondition.conditions.join(" AND ");
             });
         }
-        if (this.whereConditions.length > 0) {
-            sql += " WHERE " + this.whereConditions.join(" AND ");
+        if (this.whereExpressions.length > 0) {
+            sql += " WHERE " + this.whereExpressions.join(" AND ");
+        }
+        return sql;
+    }
+    get createSqlFromJoinWhereSortLimit() {
+        let sql = this.createSqlFromJoinWhere;
+        this.orderBy("id", this.IsDescIdSort);
+        sql += ` ORDER BY ${this.sortConditions.join(",")}`;
+        if (this.Limit !== undefined && this.Limit !== null) {
+            sql += ` LIMIT ${this.Limit}`;
+        }
+        if (this.Offset !== undefined && this.Offset !== null) {
+            sql += ` OFFSET ${this.Offset}`;
         }
         return sql;
     }
@@ -67,21 +74,10 @@ class TableModel {
         this.columns = {};
         this.tableName = "";
         this.asTableName = "";
-        this.selectColumns = [];
-        this.whereConditions = [];
+        this.selectExpressions = [];
+        this.whereExpressions = [];
+        this.vars = [];
         this.joinConditions = [];
-        // private get createSqlFromJoinWhereSortLimit(): string {
-        //     let sql = this.createSqlFromJoinWhere;
-        //     this.orderBy("id", this.IsDescIdSort);
-        //     sql += ` ORDER BY ${this.sortConditions.join(",")}`;
-        //     if (this.Limit !== undefined && this.Limit !== null) {
-        //         sql += ` LIMIT ${this.Limit}`;
-        //     }
-        //     if (this.Offset !== undefined && this.Offset !== null) {
-        //         sql += ` OFFSET ${this.Offset}`;
-        //     }
-        //     return sql;
-        // }
         this.sortConditions = [];
         this.IsDescIdSort = true;
         this.Offset = null;
@@ -92,91 +88,58 @@ class TableModel {
         this.client = client;
         this.asTableName = asName;
     }
-    // /**
-    //  * SELECT句の追加
-    //  * @param selectColumns 取得するカラム名の配列。デフォルトは全カラム（"*"）。
-    //  * @param tableInfo テーブル情報のオブジェクト。デフォルトは現在のテーブル情報。
-    //  */
-    // public select(selectColumns: string[] | "*" = "*", selectBaseModel: BaseModel | null = null) {
-    //     if (selectBaseModel == null) {
-    //         selectBaseModel = this;
-    //     }
-    //     if (selectColumns == "*") {
-    //         Object.keys(selectBaseModel.Columns).forEach((key) => {
-    //             if (key == 'id' && selectBaseModel != this) {
-    //                 return;
-    //             }
-    //             this.selectColumns.push(SqlUtil.createSelect(selectBaseModel, key, false));
-    //         });
-    //         this.selectCreateUpdateTime(selectBaseModel);
-    //     } else {
-    //         selectColumns.forEach((camelKey) => {
-    //             this.selectColumns.push(SqlUtil.createSelect(selectBaseModel, camelKey, true));
-    //         });
-    //     }
-    // }
-    // /**
-    //  * 日付または日時をSELECT句に追加します。
-    //  * @param param1 カラム名またはColumnInfoTypeオブジェクト
-    //  * @param isDateTime trueの場合は日時形式、falseの場合は日付形式でフォーマットします
-    //  * @param asName SELECT句で使用するエイリアス名
-    //  */
-    // public selectDateTime(param1: string | ColumnInfoType, isDateTime: boolean, asName: string) {
-    //     let query;
-    //     if (param1 instanceof ColumnInfoType) {
-    //         query = param1.ColumnQuery;
-    //     } else {
-    //         query = param1;
-    //     }
-    //     if (isDateTime) {
-    //         this.selectColumns.push(`to_char(${query}, 'YYYY-MM-DD HH24:mi:ss') as "${asName}"`);
-    //     } else {
-    //         this.selectColumns.push(`to_char(${query}, 'YYYY-MM-DD') as "${asName}"`)
-    //     }
-    // }
-    // /**
-    //  * SELECT句をクエリで追加
-    //  * @param selectQuery SELECT文
-    //  * @param as AS句
-    //  */
-    // public selectSentence(selectQuery: string, as: string) {
-    //     this.selectColumns.push(`(${selectQuery}) as "${as}"`);
-    // }
-    // /**
-    //  * 指定された条件に基づいてテーブルを結合します。
-    //  * @param joinType 結合の種類を指定します
-    //  * @param joinBaseModel 結合する対象のBaseModelインスタンスを指定します。
-    //  * @param conditions 結合条件を指定します。条件はオブジェクトまたは文字列で指定できます。
-    //  */
-    // public join(joinType: 'left' | 'inner', joinBaseModel: BaseModel, conditions: Array<NestedConditionType>) {
-    //     this.joinConditions.push({
-    //         type: joinType, joinBaseModel: joinBaseModel,
-    //         conditions: [this.createCondition(conditions, this)]
-    //     });
-    // }
-    // /**
-    //  * WHERE条件の追加
-    //  * @param leftColumnOrQuery 左辺のカラム名またはColumnInfoTypeオブジェクト または 条件クエリ式
-    //  * @param operator 演算子（例: '=', '>', '<'など）
-    //  * @param rightColumn 右辺の値またはColumnInfoTypeオブジェクト
-    //  */
-    // public where(leftColumnOrQuery: string | ColumnInfoType, operator: OperatorParamType | null = null, rightColumn: SqlValueParamType | Array<SqlValueParamType> | ColumnInfoType | null = null) {
-    //     let condition = "";
-    //     if (typeof(leftColumnOrQuery) == 'string') {
-    //         if (operator == null) {
-    //             condition = leftColumnOrQuery;
-    //         } else {
-    //             condition = SqlUtil.createWhere(new ColumnInfoType(leftColumnOrQuery, this, true), operator, rightColumn);
-    //         }
-    //     } else {
-    //         if (operator == null) {
-    //             throw new SqlException();
-    //         } else {
-    //             condition = SqlUtil.createWhere(leftColumnOrQuery, operator, rightColumn);
-    //         }
-    //     }
-    //     this.whereConditions.push(condition);
-    // }
+    /**
+     * SELECT句の追加
+     * @param selectColumns 取得するカラム名の配列。デフォルトは全カラム（"*"）。
+     * @param tableInfo テーブル情報のオブジェクト。デフォルトは現在のテーブル情報。
+     */
+    select(columns = "*", model) {
+        if (model === undefined) {
+            model = this;
+        }
+        if (columns == "*") {
+            for (const key of Object.keys(this.Columns)) {
+                this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }));
+            }
+        }
+        else if (columns != null) {
+            for (const key of columns) {
+                this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }));
+            }
+        }
+    }
+    /**
+     * WHERE条件の追加
+     * @param leftColumnOrQuery 左辺のカラム名またはColumnInfoTypeオブジェクト または 条件クエリ式
+     * @param operator 演算子（例: '=', '>', '<'など）
+     * @param rightColumn 右辺の値またはColumnInfoTypeオブジェクト
+     */
+    where(left, operator, right) {
+        if (typeof left === 'string') {
+            if (operator === undefined || right === undefined) {
+                this.whereExpressions.push(left);
+            }
+            else {
+                const query = WhereExpression_1.default.create({ model: this, name: left }, operator, right, this.vars.length + 1);
+                this.whereExpressions.push(query.sql);
+                if (query.vars !== undefined) {
+                    this.vars = [...this.vars, ...query.vars];
+                }
+            }
+        }
+        else {
+            if (operator === undefined || right === undefined) {
+                throw new Error(`leftがTColumnInfoの場合はoperator, rightを設定してください。`);
+            }
+            else {
+                const query = WhereExpression_1.default.create(left, operator, right, this.vars.length + 1);
+                this.whereExpressions.push(query.sql);
+                if (query.vars !== undefined) {
+                    this.vars = [...this.vars, ...query.vars];
+                }
+            }
+        }
+    }
     // /**
     //  * 日付を比較するWHERE条件を追加します。
     //  * @param leftColumnOrQuery 左辺のカラム名またはColumnInfoTypeオブジェクト
@@ -245,20 +208,17 @@ class TableModel {
     //     }
     //     return `(${queryConditions.filter(condition => condition !== null && condition !== '').join(` ${operator} `)})`;
     // }
-    // /**
-    //  * ソート条件を追加します
-    //  * @param column カラム名またはColumnInfoTypeオブジェクト
-    //  * @param isDesc true: 降順ソート、false: 昇順ソート、null: 昇順ソート
-    //  */
-    // public orderBy(column: string | ColumnInfoType, isDesc: boolean | null = null) {
-    //     if (typeof(column) == 'string') {
-    //         column = new ColumnInfoType(column, this);
-    //     }
-    //     if (column.ColumnInfo == null) {
-    //         throw new SqlException("orderBy_01", `${column.ColumnName}は${column.TableName}に存在しません。`);
-    //     }
-    //     this.sortConditions.push(`${column.ColumnQuery} ${isDesc ? 'DESC' : 'ASC'}`);
-    // }
+    /**
+     * ソート条件を追加します
+     * @param column カラム名またはColumnInfoTypeオブジェクト
+     * @param isDesc true: 降順ソート、false: 昇順ソート、null: 昇順ソート
+     */
+    orderBy(column, isDesc = null) {
+        if (typeof column === 'string') {
+            column = { model: this, name: column };
+        }
+        this.sortConditions.push(`${SqlUtils_1.default.getColumnInfo(column).expression} ${isDesc ? 'DESC' : 'ASC'}`);
+    }
     // /**
     //  * 指定されたリストに基づいてソート条件を追加します。
     //  * @param column ソート対象のカラム名またはColumnInfoTypeオブジェクト
@@ -312,19 +272,21 @@ class TableModel {
     // public async orderBySentence(query: string, isDesc: boolean | null = null) {
     //     this.sortConditions.push(`${query} ${isDesc ? 'DESC' : 'ASC'}`);
     // }
-    // /**
-    //  * SQL文の実行
-    //  * @param connection connection 
-    //  * @returns datas
-    //  */
-    // public async executeSelect<T = {[key: string]: any}>(client: PoolClient) {
-    //     if (this.selectColumns.length == 0) {
-    //         this.select();
-    //     }
-    //     let sql = ` SELECT ${this.selectColumns.join(",")} ${this.createSqlFromJoinWhereSortLimit}`;
-    //     let data = await this.executeQuery(sql, client);
-    //     return data.rows as Array<T>;
-    // }
+    /**
+     * SQL文の実行
+     * @param connection connection
+     * @returns datas
+     */
+    executeSelect() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.selectExpressions.length === 0) {
+                this.select();
+            }
+            let sql = ` SELECT ${this.selectExpressions.join(",")} ${this.createSqlFromJoinWhereSortLimit}`;
+            let data = yield this.executeQuery(sql, this.vars);
+            return data.rows;
+        });
+    }
     // /**
     //  * SQL文の実行
     //  * @param connection connection 
@@ -702,10 +664,11 @@ class TableModel {
                 }
             }
             // 初期化項目
-            this.selectColumns = [];
-            this.whereConditions = [];
+            this.selectExpressions = [];
+            this.whereExpressions = [];
             this.joinConditions = [];
             this.sortConditions = [];
+            this.vars = [];
             this.Offset = null;
             this.Limit = null;
             return data;

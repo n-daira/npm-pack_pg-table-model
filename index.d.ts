@@ -1,9 +1,11 @@
 import { PoolClient } from 'pg';
 
 declare module 'test_table_model' {
+    export type TSqlValue = string | number | boolean | Date;
     export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
     export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
+    export type TColumnInfo = { model: TableModel, name: string }
     export type TOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" | "h2f_like" | "h2f_ilike" | "in" | "not in";
     export type TSelectExpression = { expression: string, alias: string }
 
@@ -17,6 +19,14 @@ declare module 'test_table_model' {
         constructor(client: PoolClient, asName: string);
         constructor(client: PoolClient);
 
+        public select(): void;
+        public select(columns: string[] | '*'): void;
+        public select(columns: string[] | '*', model: TableModel): void;
+
+        public where(left: string): void;
+        public where(left: string, operator: TOperator, right: TSqlValue | Array<TSqlValue> | TColumnInfo | null): void;
+        public where(left: TColumnInfo, operator: TOperator, right: TSqlValue | Array<TSqlValue> | TColumnInfo | null): void;
+
         public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null, selectExpressions: Array<TSelectExpression> | null): Promise<T | null>;
         public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null): Promise<T | null>;
         public findId<T = {[key: string]: any}>(id: any): Promise<T | null>;
@@ -29,5 +39,7 @@ declare module 'test_table_model' {
         public executeInsert(options: {[key: string]: any}) : Promise<void>;
         public executeUpdateId(id: any, options: {[key: string]: any}) : Promise<boolean>;
         public executeDeleteId(id: any) : Promise<boolean>;
+
+        public executeSelect<T = {[key: string]: any}>(): Promise<Array<T>>;
     }
 }

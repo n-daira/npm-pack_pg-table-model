@@ -1,6 +1,6 @@
 import { TableModel } from "./TableModel";
 
-export type TSqlValue = string | number | boolean | Date | null;
+export type TSqlValue = string | number | boolean | Date;
 export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute};
 export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
 export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
