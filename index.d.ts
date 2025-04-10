@@ -19,18 +19,19 @@ declare module 'pg-table-model' {
     export type TSortKeyword = 'desc' | 'asc';
 
     export class TableModel {
-        protected columns: { [key: string]: TColumn };
+        protected readonly columns: { [key: string]: TColumn };
         get Columns(): { [key: string]: TColumn };
-        protected tableName: string;
+        protected readonly tableName: string;
         get TableName(): string;
-        get AsTableName(): string;
+        get TableAlias(): string;
         public IsOutputLog: boolean;
         public SortKeyword: TSortKeyword;
         public Offset: number;
         public Limit: number;
+        public PageCount: number;
 
-        constructor(client: PoolClient, asName: string);
         constructor(client: PoolClient);
+        constructor(client: PoolClient, tableAlias: string);
 
         public select(): void;
         public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*'): void;
@@ -48,6 +49,7 @@ declare module 'pg-table-model' {
         public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null): Promise<T | null>;
         public findId<T = {[key: string]: any}>(id: any): Promise<T | null>;
 
+        protected readonly errorMessages: Record<TColumnType | 'length' | 'null' | 'notInput', string>
         protected throwValidationError(message: string): never;
         protected validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean) : void;
         protected validateInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
@@ -55,6 +57,7 @@ declare module 'pg-table-model' {
         protected validateUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<void>;
         protected validateDelete() : Promise<void>;
         protected validateDeleteId(id: any) : Promise<void>;
+
         public executeInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
         public executeUpdate(options: {[key: string]: TSqlValue}) : Promise<number>;
         public executeUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<boolean>;

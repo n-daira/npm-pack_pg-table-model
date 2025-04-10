@@ -6,10 +6,10 @@ export default class WhereExpression {
 
     static create(left: TColumnInfo, operator: TOperator, right: TSqlValue | null | Array<TSqlValue> | TColumnInfo, varLength: number) : TQuery {
 
-        // 指定したColumnInfoは存在するかのチェックも兼ねている
+        // Check if the specified ColumnInfo exists
         const leftColumn = left.model.getColumn(left.name);
 
-        // 演算子はそれぞれ正しいか？
+        // Are the operators correct?
         const useableOperator: { [key in TColumnType]: string[] } = {
             number: ["=", "!=", ">", ">=", "<", "<=", "in", "not in"],
             string: ["=", "!=", "like", "ilike", "h2f_like", "h2f_ilike", "in", "not in"],
@@ -21,22 +21,21 @@ export default class WhereExpression {
         };
 
         if (useableOperator[leftColumn.type].includes(operator) == false) {
-            throw new Error(`${leftColumn.tableName}.${leftColumn.columnName}は${operator}演算子を使用することはできません。(${leftColumn.type})`);
+            throw new Error(`The ${operator} operator cannot be used for ${leftColumn.tableName}.${leftColumn.columnName}. (${leftColumn.type})`);
         }
 
-        // IN NOT IN句
+        // IN NOT IN clause
         if (["in", "not in"].includes(operator)) {
             if (Array.isArray(right) == false) {
-                throw new Error(`in演算子の場合、右辺に配列以外を入力することはできません。`);
+                throw new Error(`For the 'in' operator, you cannot input anything other than an array on the right side.`);
             }
 
             if (right.length == 0) {
-                // 配列が0個の場合にin ,not inを作成するとエラーになるが、渡すデータとしてはあっており、
-                // データ返却の期待値は変わらないため、0個の場合は検索しないようにする
+                // Creating in, not in with 0 elements will cause an error, but since the data to be passed is correct and the expected return value does not change, do not search if there are 0 elements
                 return { sql: '' };
             }
             
-            // 値のバリデーションチェック
+            // Validate values
             for (const value of right) {
                 ValidateValueUtil.validateValue(leftColumn, value);
             }
@@ -45,18 +44,18 @@ export default class WhereExpression {
                 vars: [right]
             }
         } else if (Array.isArray(right)) {
-            throw new Error(`in演算子以外の場合、右辺に配列を入力することはできません。`);
+            throw new Error(`For operators other than 'in', you cannot input an array on the right side.`);
         }
 
-        // 右側の値がコラム指定の場合
+        // If the right side value is a column specification
         if (right !== null && typeof right === 'object' && 'model' in right && 'name' in right) {
             const rightColumn = right.model.getColumn(right.name);
 
             if (leftColumn.type !== rightColumn.type) {
-                throw new Error(`[${leftColumn.tableName}].[${leftColumn.columnName}]と[${rightColumn.tableName}].[${rightColumn.columnName}]はそれぞれtypeが異なります。`);
+                throw new Error(`The types of [${leftColumn.tableName}].[${leftColumn.columnName}] and [${rightColumn.tableName}].[${rightColumn.columnName}] are different.`);
             }
 
-            // LIKE演算子は変わるので別途処理
+            // LIKE operators are different, so handle separately
             switch (operator) {
                 case 'like':
                 case 'ilike':
@@ -85,12 +84,12 @@ export default class WhereExpression {
                     sql: `${leftColumn.expression} is not null`
                 }
             } else {
-                throw new Error(`nullで比較する場合、=, !=以外の演算子は使えません。(${operator})`);
+                throw new Error(`When comparing with null, operators other than =, != cannot be used. (${operator})`);
             }
         }
 
         ValidateValueUtil.validateValue(leftColumn, right);
-        // LIKE演算子は変わるので別途処理
+        // LIKE operators are different, so handle separately
         switch (operator) {
             case 'like':
             case 'ilike':
@@ -113,9 +112,9 @@ export default class WhereExpression {
     }
 
     /**
-     * OR条件を作成するためのヘルパーメソッド
-     * @param conditions OR条件を構成する条件の配列
-     * @returns OR条件を表すSQLクエリ文字列
+     * Helper method to create OR conditions
+     * @param conditions Array of conditions that make up the OR condition
+     * @returns SQL query string representing the OR condition
      */
     static createCondition(conditions: Array<TNestedCondition>, model: TableModel, varLength: number): TQuery {
 
@@ -137,7 +136,7 @@ export default class WhereExpression {
         let vars: any[] = []
         for (let condition of conditions) {
             if (Array.isArray(condition)) {
-                // 配列の場合はネストした条件になるため、再起的にこの関数を呼び出す
+                // If it's an array, it's a nested condition, so call this function recursively
                 const query = this.createCondition(condition, model, varLength + vars.length);
                 expression.push(query.sql);
                 if (query.vars !== undefined) {
@@ -147,7 +146,7 @@ export default class WhereExpression {
             }
 
             if (typeof condition === 'string') {
-                // 文字列で直接指定した場合はクエリ分となるため、そのまま挿入
+                // If specified directly as a string, it becomes a query, so insert as is
                 expression.push(condition);
                 continue;
             }
@@ -175,9 +174,9 @@ export default class WhereExpression {
     }
 
     /**
-     * 半角文字を全角に変換するSQL文
-     * @param {string} columnName カラム名
-     * @returns SQL文
+     * SQL statement to convert half-width characters to full-width
+     * @param {string} columnName Column name
+     * @returns SQL statement
      */
     private static makeSqlReplaceHalfToFull(columnNameOrValue: string) {
         const num = {

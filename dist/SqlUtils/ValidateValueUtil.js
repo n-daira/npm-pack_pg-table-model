@@ -8,62 +8,66 @@ const StringUtil_1 = __importDefault(require("../Utils/StringUtil"));
 class ValidateValueUtil {
     static validateId(columns, id) {
         if ('id' in columns === false) {
-            throw new Error("idがColumnsに設定されていません。");
+            throw new Error("The 'id' is not set in Columns.");
         }
-        const column = columns['id'];
-        if (column.attribute !== 'primary') {
-            throw new Error("idはPrimary Keyとして設定されていません。");
+        const pkColumnsArray = Object.entries(columns).filter(([key, column]) => column.attribute === 'primary');
+        const pkColumns = Object.fromEntries(pkColumnsArray);
+        if ('id' in pkColumns === false) {
+            throw new Error("The 'id' is not set as a Primary Key.");
         }
-        ValidateValueUtil.validateValue(column, id);
+        if (Object.keys(pkColumns).length > 1) {
+            throw new Error("This method cannot be used because there are other Primary Keys set besides 'id'.");
+        }
+        ValidateValueUtil.validateValue(pkColumns['id'], id);
     }
     static validateValue(column, value) {
         if (value === undefined) {
-            throw new Error(`valueはundefinedです。`);
+            throw new Error(`The value is undefined.`);
         }
         if (value === null) {
             if (column.attribute === 'nullable') {
                 return null;
             }
-            throw new Error(`指定したColumnはNull許容していません。(${column.attribute})`);
+            throw new Error(`The specified column does not allow null values. (${column.attribute})`);
         }
         switch (column.type) {
             case "string":
                 if (this.isErrorString(value)) {
-                    throw new Error('stringまたはnumber型で入力してください');
+                    throw new Error('Please enter a value of type string or number.');
                 }
                 break;
             case "uuid":
                 if (this.isErrorUUID(value)) {
-                    throw new Error('stringのUUID形式で入力してください。');
+                    throw new Error('Please enter a value in UUID string format.');
                 }
                 break;
             case "date":
                 if (this.isErrorDate(value)) {
-                    throw new Error('"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型かつ有効な日時で入力してください。');
+                    throw new Error('Please enter a valid date in "YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss" format or as a Date type.');
                 }
                 break;
             case "time":
                 if (this.isErrorTime(value)) {
-                    throw new Error('"hh:mi"形式または"hh:mi:ss"形式かつ有効な時間で入力してください。');
+                    throw new Error('Please enter a valid time in "hh:mi" or "hh:mi:ss" format.');
                 }
                 break;
             case "timestamp":
                 if (this.isErrorTimestamp(value)) {
-                    throw new Error('"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型かつ有効な日時で入力してください。');
+                    throw new Error('Please enter a valid timestamp in "YYYY-MM-DD", "YYYY-MM-DD hh:mi:ss", or "YYYY-MM-DDThh:mi:ss" format or as a Date type.');
                 }
                 break;
             case "number":
                 if (this.isErrorNumber(value)) {
-                    throw new Error('number型または半角数字の文字列で入力してください。');
+                    throw new Error('Please enter a value of type number or a string of half-width digits.');
                 }
                 break;
             case "bool":
                 if (this.isErrorBool(value)) {
-                    throw new Error('bool型または"true","false"のstring型または0,1のnumber型のいずれかで入力してください。');
+                    throw new Error('Please enter a value of type bool, or a string "true" or "false", or a number 0 or 1.');
                 }
                 break;
             default:
-                throw new Error(`指定したカラムタイプは存在しません。(${column.type})`);
+                throw new Error(`The specified column type does not exist. (${column.type})`);
         }
     }
     static isErrorValue(columnType, value) {
@@ -83,7 +87,7 @@ class ValidateValueUtil {
             case "bool":
                 return this.isErrorBool(value);
             default:
-                throw new Error(`指定したColumnTypeEnumは存在しません。(${columnType})`);
+                throw new Error(`The specified ColumnTypeEnum does not exist. (${columnType})`);
         }
     }
     static isErrorString(value) {

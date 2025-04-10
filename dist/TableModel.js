@@ -19,30 +19,30 @@ const WhereExpression_1 = __importDefault(require("./SqlUtils/WhereExpression"))
 class TableModel {
     get Columns() {
         if (Object.keys(this.columns).length === 0) {
-            throw new Error("TableModelのcolumnsを設定してください。");
+            throw new Error("Please set the columns for TableModel.");
         }
         return this.columns;
     }
     getColumn(key) {
         if (key in this.Columns === false) {
-            throw new Error(`${this.TableName}に${key}は存在しません。`);
+            throw new Error(`${this.TableName} does not contain ${key}.`);
         }
-        return Object.assign(Object.assign({}, this.Columns[key]), { columnName: key, tableName: this.TableName, expression: `"${this.AsTableName}".${key}` });
+        return Object.assign(Object.assign({}, this.Columns[key]), { columnName: key, tableName: this.TableName, expression: `"${this.TableAlias}".${key}` });
     }
     get TableName() {
         if (this.tableName === "") {
-            throw new Error("TableModelのtableNameを設定してください。");
+            throw new Error("Please set the tableName for TableModel.");
         }
         return this.tableName;
     }
-    get AsTableName() {
-        return this.asTableName === "" ? this.TableName : this.asTableName;
+    get TableAlias() {
+        return this.tableAlias === undefined ? this.TableName : this.tableAlias;
     }
     get createSqlFromJoinWhere() {
-        let sql = ` FROM ${this.TableName} as "${this.AsTableName}"`;
+        let sql = ` FROM ${this.TableName} as "${this.TableAlias}"`;
         for (const join of this.joinConditions) {
             sql += join.type === 'left' ? ' LEFT OUTER JOIN' : ' INNER JOIN';
-            sql += ` ${join.model.TableName} as "${join.model.AsTableName}" ON `;
+            sql += ` ${join.model.TableName} as "${join.model.TableAlias}" ON `;
             const query = WhereExpression_1.default.createCondition(join.conditions, this, this.vars.length);
             sql += query.sql;
             if (query.vars !== undefined) {
@@ -72,31 +72,38 @@ class TableModel {
     }
     set OffsetPage(value) {
         if (value > 0) {
-            this.Limit = this.pageCount;
-            this.Offset = (value - 1) * this.pageCount;
+            this.Limit = this.PageCount;
+            this.Offset = (value - 1) * this.PageCount;
         }
     }
-    get PageCount() { return this.pageCount; }
-    constructor(client, asName = "") {
+    constructor(client, tableAlias) {
         this.columns = {};
         this.tableName = "";
-        this.asTableName = "";
         this.IsOutputLog = false;
         this.SortKeyword = 'asc';
+        this.PageCount = 10;
         this.selectExpressions = [];
         this.joinConditions = [];
         this.whereExpressions = [];
         this.groupExpression = [];
         this.sortExpression = [];
         this.vars = [];
-        // Setすることがあるなら、Setterを追加
-        // その際にLimitとOffsetの更新も行う
-        this.pageCount = 10;
+        this.errorMessages = {
+            'string': '{name} should be entered as a string or number type.',
+            'uuid': '{name} should be entered as a UUID.',
+            'number': '{name} should be entered as a number.',
+            'bool': '{name} should be entered as a bool type, "true", "false", 0, or 1.',
+            'date': '{name} should be entered in "YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss" format or as a Date type.',
+            'time': '{name} should be entered in "hh:mi" format or "hh:mi:ss" format.',
+            'timestamp': '{name} should be entered in "YYYY-MM-DD" format, "YYYY-MM-DD hh:mi:ss" format, "YYYY-MM-DDThh:mi:ss" format, or as a Date type.',
+            'length': '{name} should be entered within {length} characters.',
+            'null': '{name} is not allowed to be null.',
+            'notInput': 'Please enter {name}.'
+        };
         this.client = client;
-        this.asTableName = asName;
-    }
-    throwValidationError(message) {
-        throw new Error(message);
+        if (tableAlias !== undefined && tableAlias.trim() !== '') {
+            this.tableAlias = tableAlias;
+        }
     }
     findId(id_1) {
         return __awaiter(this, arguments, void 0, function* (id, selectColumns = "*", selectExpressions = null) {
@@ -146,7 +153,7 @@ class TableModel {
         if (typeof param1 === 'string') {
             const expression = param1;
             if (typeof param2 !== 'string' || param2.trim() === '') {
-                throw new Error('第一引数が文字列の場合、第二引数は空文字以外の文字列を入力してください。');
+                throw new Error('If the first argument is a string, the second argument must be a non-empty string.');
             }
             const alias = param2;
             this.selectExpressions.push(`(${expression}) as "${alias}"`);
@@ -178,7 +185,7 @@ class TableModel {
         }
         if ('model' in left && 'name' in left) {
             if (operator === undefined || right === undefined) {
-                throw new Error(`leftがTColumnInfoの場合はoperator, rightを設定してください。`);
+                throw new Error(`If left is TColumnInfo, please set operator and right.`);
             }
             else {
                 const query = WhereExpression_1.default.create(left, operator, right, this.vars.length + 1);
@@ -226,7 +233,7 @@ class TableModel {
                     orderConditions.push(`WHEN ${columnInfo.expression} is null THEN ${i}`);
                     continue;
                 }
-                throw new Error(`${this.TableName}.${columnInfo.columnName}はnull許容されていないカラムです。`);
+                throw new Error(`${this.TableName}.${columnInfo.columnName} is a non-nullable column.`);
             }
             ValidateValueUtil_1.default.validateValue(columnInfo, value);
             switch (columnInfo.type) {
@@ -271,64 +278,50 @@ class TableModel {
             let tempVars = [...this.vars];
             const data = yield this.executeQuery(sql, tempVars);
             const countData = yield this.executeQuery(countSql, tempVars);
-            return { datas: data.rows, count: Number(countData.rows[0].count), lastPage: Math.ceil(Number(countData.rows[0].count) / this.pageCount) };
+            return { datas: data.rows, count: Number(countData.rows[0].count), lastPage: Math.ceil(Number(countData.rows[0].count) / this.PageCount) };
         });
     }
+    throwValidationError(message) {
+        throw new Error(message);
+    }
     validateOptions(options, isInsert) {
-        var _a;
         if (Object.keys(options).length === 0) {
-            throw new Error('optionsは最低1つ以上のkey-valueが必要です。');
+            throw new Error('At least one key-value pair is required in options.');
         }
         for (const [key, value] of Object.entries(options)) {
             const column = this.getColumn(key);
             if (isInsert === false && column.attribute === 'primary') {
-                throw new Error(`${this.TableName}.${key}はprimary keyのため、変更できません。`);
+                throw new Error(`${this.TableName}.${key} cannot be modified because it is a primary key.`);
             }
+            const name = (column.alias === undefined || column.alias === '') ? key : column.alias;
             if (value === null) {
                 if (column.attribute === 'nullable') {
                     continue;
                 }
-                this.throwValidationError(`${this.tableName}.${key}はNULL許容されていないカラムです。`);
+                this.throwValidationError(this.errorMessages.null.replace('{name}', name));
             }
-            const name = ((_a = column.alias) !== null && _a !== void 0 ? _a : '') === '' ? key : column.alias;
             if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
-                switch (column.type) {
-                    case "string":
-                        this.throwValidationError(`${name}はstringまたはnumber型で入力してください`);
-                    case 'uuid':
-                        this.throwValidationError(`${name}はUUIDで入力してください。`);
-                    case 'number':
-                        this.throwValidationError(`${name}は数値で入力してください。`);
-                    case 'bool':
-                        this.throwValidationError(`${name}はbool型,"true","false",0,1のいずれかで入力してください。`);
-                    case 'date':
-                        this.throwValidationError(`${name}は"YYYY-MM-DD" or "YYYY-MM-DD hh:mi:ss"形式 or Date型で入力してください。`);
-                    case 'time':
-                        this.throwValidationError(`${name}は"hh:mi"形式または"hh:mi:ss"形式で入力してください。`);
-                    case 'timestamp':
-                        this.throwValidationError(`${name}は"YYYY-MM-DD"形式または"YYYY-MM-DD hh:mi:ss"形式または"YYYY-MM-DDThh:mi:ss"形式またはDate型で入力してください。`);
-                }
+                this.throwValidationError(this.errorMessages[column.type].replace('{name}', name));
             }
             if (column.type === 'string') {
                 if (column.length === undefined) {
-                    throw new Error("stringの場合、columnのlengthを指定してください。");
+                    throw new Error("For strings, please specify the length of the column.");
                 }
                 if (value.toString().length > column.length) {
-                    this.throwValidationError(`${name}は${column.length}文字以内で入力してください。`);
+                    this.throwValidationError(this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
                 }
             }
         }
     }
     validateInsert(options) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             for (const key in this.Columns) {
                 const column = this.getColumn(key);
-                const name = ((_a = column.alias) !== null && _a !== void 0 ? _a : '') === '' ? key : column.alias;
+                const name = (column.alias === undefined || column.alias === '') ? key : column.alias;
                 if (options[key] === undefined || options[key] === null) {
                     // Null許容されていないカラムにNULLを入れようとしているか？
                     if (column.attribute === "primary" || column.attribute === "noDefault") {
-                        this.throwValidationError(`${name}を入力してください。`);
+                        this.throwValidationError(this.errorMessages.notInput.replace('{name}', name));
                     }
                 }
             }
@@ -354,7 +347,7 @@ class TableModel {
             const vars = [];
             for (const [key, value] of Object.entries(options)) {
                 if (value === undefined) {
-                    throw new Error(`insert optionの${key}がundefinedになっています。`);
+                    throw new Error(`The insert option ${key} is undefined.`);
                 }
                 columns.push(key);
                 vars.push(value);
@@ -375,11 +368,11 @@ class TableModel {
                 this.vars.push(value);
                 updateExpressions.push(`${key} = $${this.vars.length}`);
             }
-            let sql = `UPDATE ${this.TableName} "${this.AsTableName}" SET ${updateExpressions.join(',')} `;
+            let sql = `UPDATE ${this.TableName} "${this.TableAlias}" SET ${updateExpressions.join(',')} `;
             if (this.joinConditions.length > 0) {
                 const tables = [];
                 for (const join of this.joinConditions) {
-                    tables.push(`${join.model.TableName} as "${join.model.AsTableName}"`);
+                    tables.push(`${join.model.TableName} as "${join.model.TableAlias}"`);
                     const query = WhereExpression_1.default.createCondition(join.conditions, this, this.vars.length);
                     this.whereExpressions.push(query.sql);
                     if (query.vars !== undefined) {
@@ -405,11 +398,11 @@ class TableModel {
             const vars = [];
             for (const [key, value] of Object.entries(options)) {
                 if (value === undefined) {
-                    throw new Error(`update optionの${key}がundefinedになっています。`);
+                    throw new Error(`The update option ${key} is undefined.`);
                 }
                 const column = this.getColumn(key);
                 if (column.attribute === 'primary') {
-                    throw new Error(`primary keyである${this.TableName}.${key}は変更できません。`);
+                    throw new Error(`The primary key ${this.TableName}.${key} cannot be changed.`);
                 }
                 vars.push(value);
                 updateExpressions.push(`${key} = $${vars.length}`);
@@ -423,11 +416,11 @@ class TableModel {
     executeDelete() {
         return __awaiter(this, void 0, void 0, function* () {
             this.validateDelete();
-            let sql = `DELETE FROM ${this.TableName} "${this.AsTableName}" `;
+            let sql = `DELETE FROM ${this.TableName} "${this.TableAlias}" `;
             if (this.joinConditions.length > 0) {
                 const tables = [];
                 for (const join of this.joinConditions) {
-                    tables.push(`${join.model.TableName} as "${join.model.AsTableName}"`);
+                    tables.push(`${join.model.TableName} as "${join.model.TableAlias}"`);
                     const query = WhereExpression_1.default.createCondition(join.conditions, this, this.vars.length);
                     this.whereExpressions.push(query.sql);
                     if (query.vars !== undefined) {
@@ -464,6 +457,7 @@ class TableModel {
             this.vars = [];
             this.Offset = undefined;
             this.Limit = undefined;
+            this.PageCount = 10;
             let sql = '';
             if (typeof param1 === 'string') {
                 sql = param1;

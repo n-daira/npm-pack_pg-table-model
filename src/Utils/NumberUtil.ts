@@ -1,5 +1,4 @@
 export default class NumberUtil {
-
     /**
      * Checks if the given value is a number.
      * 与えられた値が数値であるかどうかを確認します。
