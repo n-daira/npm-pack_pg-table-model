@@ -93,19 +93,29 @@ class TableModel {
      * @param selectColumns 取得するカラム名の配列。デフォルトは全カラム（"*"）。
      * @param tableInfo テーブル情報のオブジェクト。デフォルトは現在のテーブル情報。
      */
-    select(columns = "*", model) {
-        if (model === undefined) {
-            model = this;
-        }
-        if (columns == "*") {
+    select(param1 = "*", param2) {
+        if (param1 === "*") {
+            const model = param2 instanceof TableModel ? param2 : this;
             for (const key of Object.keys(this.Columns)) {
                 this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }));
             }
+            return;
         }
-        else if (columns != null) {
-            for (const key of columns) {
+        if (Array.isArray(param1)) {
+            const model = param2 instanceof TableModel ? param2 : this;
+            for (const key of param1) {
                 this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }));
             }
+            return;
+        }
+        if (typeof param1 === 'string') {
+            const expression = param1;
+            if (typeof param2 !== 'string' || param2.trim() === '') {
+                throw new Error('第一引数が文字列の場合、第二引数は空文字以外の文字列を入力してください。');
+            }
+            const alias = param2;
+            this.selectExpressions.push(`(${expression}) as "${alias}"`);
+            return;
         }
     }
     /**
@@ -126,8 +136,9 @@ class TableModel {
                     this.vars = [...this.vars, ...query.vars];
                 }
             }
+            return;
         }
-        else {
+        if ('model' in left && 'name' in left) {
             if (operator === undefined || right === undefined) {
                 throw new Error(`leftがTColumnInfoの場合はoperator, rightを設定してください。`);
             }
@@ -137,6 +148,14 @@ class TableModel {
                 if (query.vars !== undefined) {
                     this.vars = [...this.vars, ...query.vars];
                 }
+            }
+            return;
+        }
+        if (Array.isArray(left)) {
+            const query = WhereExpression_1.default.createCondition(left, this, this.vars.length + 1);
+            this.whereExpressions.push(query.sql);
+            if (query.vars !== undefined) {
+                this.vars = [...this.vars, ...query.vars];
             }
         }
     }
@@ -157,56 +176,6 @@ class TableModel {
     // public whereTimestampToDate(leftColumnOrQuery: string | ColumnInfoType, date: string | Date = new Date()) {
     //     const column = typeof leftColumnOrQuery == 'string' ? new ColumnInfoType(leftColumnOrQuery, this) : leftColumnOrQuery;
     //     this.whereConditions.push(`DATE(${column.ColumnQuery}) = ${this.toSqlValueDate(date)}`);
-    // }
-    // /**
-    //  * 複数の条件をANDまたはORで結合してWHERE句に追加します。
-    //  * @param conditions 条件の配列。各条件はNestedConditionTypeとして指定します。
-    //  */
-    // public whereOrAnd(conditions: Array<TNestedCondition>) {
-    //     this.whereConditions.push(this.createCondition(conditions, this));
-    // }
-    // /**
-    //  * 【廃止予定】
-    //  * OR条件をWHERE句に追加します。
-    //  * @param conditions OR条件を構成する条件の配列
-    //  */
-    // public whereOr(conditions: Array<NestedWhereCondition>) {
-    //     this.whereConditions.push(this.createWhereOr(['OR', ...conditions]));
-    // }
-    // /**
-    //  * 【廃止予定】
-    //  * OR条件を作成するためのヘルパーメソッド
-    //  * @param conditions OR条件を構成する条件の配列
-    //  * @returns OR条件を表すSQLクエリ文字列
-    //  */
-    // private createWhereOr(conditions: Array<NestedWhereCondition>): string {
-    //     if (conditions.length < 2) {
-    //         return '';
-    //     }
-    //     const operator = conditions.shift();
-    //     let queryConditions: string[] = [];
-    //     for (let condition of conditions) {
-    //         if (Array.isArray(condition)) {
-    //             queryConditions.push(this.createWhereOr(condition))
-    //         } else if (typeof condition === 'string') {
-    //             queryConditions.push(condition);
-    //         } else {
-    //             if (typeof condition.leftColumn === 'string') {
-    //                 queryConditions.push(SqlUtil.createWhere(
-    //                     new ColumnInfoType(condition.leftColumn, this),
-    //                     condition.operator,
-    //                     condition.rightColumn
-    //                 ));
-    //             } else {
-    //                 queryConditions.push(SqlUtil.createWhere(
-    //                     condition.leftColumn,
-    //                     condition.operator,
-    //                     condition.rightColumn
-    //                 ));
-    //             }
-    //         }
-    //     }
-    //     return `(${queryConditions.filter(condition => condition !== null && condition !== '').join(` ${operator} `)})`;
     // }
     /**
      * ソート条件を追加します

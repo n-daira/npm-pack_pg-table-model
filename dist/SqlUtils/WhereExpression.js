@@ -103,47 +103,59 @@ class WhereExpression {
             vars: [right]
         };
     }
-    // /**
-    //  * OR条件を作成するためのヘルパーメソッド
-    //  * @param conditions OR条件を構成する条件の配列
-    //  * @returns OR条件を表すSQLクエリ文字列
-    //  */
-    // static createCondition(conditions: Array<TNestedCondition>, model: TableModel, varLength: number): TQuery {
-    //     if (conditions.length === 0) {
-    //         return { sql: '' };
-    //     }
-    //     let logicalOperator = 'AND';
-    //     if (conditions[0] === 'AND' || conditions[0] === 'OR') {
-    //         if (conditions.length === 1) {
-    //             return { sql: '' };
-    //         }
-    //         logicalOperator = conditions[0];
-    //         conditions.shift();
-    //     }
-    //     let queryConditions: string[] = [];
-    //     for (let condition of conditions) {
-    //         if (Array.isArray(condition)) {
-    //             // 配列の場合はネストした条件になるため、再起的にこの関数を呼び出す
-    //             queryConditions.push(this.createCondition(condition, model));
-    //             continue;
-    //         }
-    //         if (typeof condition === 'string') {
-    //             // 文字列で直接指定した場合はクエリ分となるため、そのまま挿入
-    //             queryConditions.push(condition);
-    //             continue;
-    //         }
-    //         if (typeof condition.l === 'string') {
-    //             queryConditions.push(this.create(
-    //                 { model: model, name: condition.l },
-    //                 condition.o,
-    //                 condition.r
-    //             ));
-    //             continue;
-    //         }
-    //         queryConditions.push(this.create(condition.l, condition.o, condition.r));
-    //     }
-    //     return `(${queryConditions.filter(condition => condition ?? '' !== '').join(` ${logicalOperator} `)})`;
-    // }
+    /**
+     * OR条件を作成するためのヘルパーメソッド
+     * @param conditions OR条件を構成する条件の配列
+     * @returns OR条件を表すSQLクエリ文字列
+     */
+    static createCondition(conditions, model, varLength) {
+        if (conditions.length === 0) {
+            return { sql: '' };
+        }
+        let logicalOperator = 'AND';
+        if (conditions[0] === 'AND' || conditions[0] === 'OR') {
+            if (conditions.length === 1) {
+                return { sql: '' };
+            }
+            logicalOperator = conditions[0];
+            conditions.shift();
+        }
+        const expression = [];
+        let vars = [];
+        for (let condition of conditions) {
+            if (Array.isArray(condition)) {
+                // 配列の場合はネストした条件になるため、再起的にこの関数を呼び出す
+                const query = this.createCondition(condition, model, varLength + vars.length);
+                expression.push(query.sql);
+                if (query.vars !== undefined) {
+                    vars = [...vars, ...query.vars];
+                }
+                continue;
+            }
+            if (typeof condition === 'string') {
+                // 文字列で直接指定した場合はクエリ分となるため、そのまま挿入
+                expression.push(condition);
+                continue;
+            }
+            if (typeof condition.l === 'string') {
+                const query = this.create({ model: model, name: condition.l }, condition.o, condition.r, varLength + vars.length);
+                expression.push(query.sql);
+                if (query.vars !== undefined) {
+                    vars = [...vars, ...query.vars];
+                }
+                continue;
+            }
+            const query = this.create(condition.l, condition.o, condition.r, varLength + vars.length);
+            expression.push(query.sql);
+            if (query.vars !== undefined) {
+                vars = [...vars, ...query.vars];
+            }
+        }
+        return {
+            sql: `(${expression.filter(condition => condition !== null && condition !== void 0 ? condition : '' !== '').join(` ${logicalOperator} `)})`,
+            vars: vars
+        };
+    }
     /**
      * 半角文字を全角に変換するSQL文
      * @param {string} columnName カラム名
