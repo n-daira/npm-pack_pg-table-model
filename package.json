@@ -1,6 +1,6 @@
 {
-  "name": "test_table_model",
-  "version": "1.0.44",
+  "name": "pg_table_model",
+  "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "types": "index.d.ts",

@@ -1,9 +1,5 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const SqlUtils_1 = __importDefault(require("./SqlUtils"));
 class SelectExpression {
     /**
      * 指定されたカラム情報と関数を使用して、SQLのSELECT文を作成します。
@@ -12,7 +8,7 @@ class SelectExpression {
      * @returns SQLのSELECT文の文字列。
      */
     static create(columnInfo, func = null, alias = '') {
-        const column = SqlUtils_1.default.getColumnInfo(columnInfo);
+        const column = columnInfo.model.getColumn(columnInfo.name);
         let select = '';
         switch (column.type) {
             case 'date':
@@ -25,7 +21,7 @@ class SelectExpression {
                 select = this.createDateTime(columnInfo, 'datetime');
                 break;
             default:
-                select = SqlUtils_1.default.getColumnInfo(columnInfo).expression;
+                select = column.expression;
                 break;
         }
         let aliasName = alias.trim() !== '' ? alias : columnInfo.name;
@@ -72,7 +68,7 @@ class SelectExpression {
      *          指定された形式に変換されたSQLの文字列。
      */
     static createDateTime(column, to) {
-        const columnQuery = typeof column === 'string' ? column : SqlUtils_1.default.getColumnInfo(column).expression;
+        const columnQuery = typeof column === 'string' ? column : column.model.getColumn(column.name).expression;
         switch (to) {
             case 'date':
                 return `to_char(${columnQuery}, 'YYYY-MM-DD')`;

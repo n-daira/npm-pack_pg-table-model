@@ -1,6 +1,5 @@
 import { TableModel } from "../TableModel";
 import { TAggregateFuncType, TColumnInfo } from "../Type";
-import SqlUtil from "./SqlUtils";
 
 export default class SelectExpression {
 
@@ -12,7 +11,7 @@ export default class SelectExpression {
      */
     static create(columnInfo: TColumnInfo, func: TAggregateFuncType | null = null, alias: string = '') : string {
 
-        const column = SqlUtil.getColumnInfo(columnInfo);
+        const column = columnInfo.model.getColumn(columnInfo.name);
         let select = ''
         switch (column.type) {
             case 'date':
@@ -25,7 +24,7 @@ export default class SelectExpression {
                 select = this.createDateTime(columnInfo, 'datetime');
                 break;
             default:
-                select = SqlUtil.getColumnInfo(columnInfo).expression;
+                select = column.expression;
                 break;
         }
 
@@ -77,7 +76,7 @@ export default class SelectExpression {
      *          指定された形式に変換されたSQLの文字列。
      */
     static createDateTime(column: string | TColumnInfo, to: 'date' | 'time' | 'datetime') {
-        const columnQuery = typeof column === 'string' ? column : SqlUtil.getColumnInfo(column).expression;
+        const columnQuery = typeof column === 'string' ? column : column.model.getColumn(column.name).expression;
         switch (to) {
             case 'date':
                 return `to_char(${columnQuery}, 'YYYY-MM-DD')`;

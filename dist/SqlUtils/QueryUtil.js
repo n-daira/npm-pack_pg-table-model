@@ -1,42 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 class QueryUtil {
-    static createSqlFromJoinWhere(model, join, where) {
-        let sql = ` FROM ${model.TableName} as "${model.AsTableName}"`;
-        if (join.length > 0) {
-            sql += ' ' + join.join(' ');
-        }
-        if (where.length > 0) {
-            sql += " WHERE " + where.join(" AND ");
-        }
-    }
-    /**
-     * Creates an SQL insert statement.
-     * SQL挿入文を作成します。
-     * @param options The options for the insert operation.
-     *                挿入のオプション。
-     * @param tableName The name of the table to insert into.
-     *                  挿入するテーブルの名前。
-     * @returns An object containing the SQL string and the variables.
-     *          SQL文字列と変数を含むオブジェクト。
-     */
-    static createInsert(options, tableName) {
-        const insertColumns = [];
-        const insertValues = [];
-        const insertVar = [];
-        for (const [key, value] of Object.entries(options)) {
-            if (value === undefined || value === null) {
-                continue;
-            }
-            insertColumns.push(key);
-            insertValues.push(value);
-            insertVar.push(`$${insertVar.length + 1}`);
-        }
-        return {
-            sql: `INSERT INTO ${tableName} (${insertColumns.join(",")}) VALUES (${insertVar.join(",")});`,
-            vars: insertValues
-        };
-    }
     // static createUpdate(options) {
     // }
     /**

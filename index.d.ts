@@ -53,9 +53,12 @@ declare module 'test_table_model' {
         protected validateInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
         protected validateUpdate(options: {[key: string]: TSqlValue}) : Promise<void>;
         protected validateUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<void>;
+        protected validateDelete() : Promise<void>;
         protected validateDeleteId(id: any) : Promise<void>;
         public executeInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
+        public executeUpdate(options: {[key: string]: TSqlValue}) : Promise<number>;
         public executeUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<boolean>;
+        public executeDelete() : Promise<number>;
         public executeDeleteId(id: any) : Promise<boolean>;
 
         public executeSelect<T = {[key: string]: any}>(): Promise<Array<T>>;

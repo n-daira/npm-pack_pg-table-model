@@ -1,6 +1,5 @@
 import { TableModel } from "../TableModel";
 import { TColumnInfo, TColumnType, TNestedCondition, TOperator, TQuery, TSqlValue } from "../Type";
-import SqlUtil from "./SqlUtils";
 import ValidateValueUtil from "./ValidateValueUtil";
 
 export default class WhereExpression {
@@ -8,7 +7,7 @@ export default class WhereExpression {
     static create(left: TColumnInfo, operator: TOperator, right: TSqlValue | null | Array<TSqlValue> | TColumnInfo, varLength: number) : TQuery {
 
         // 指定したColumnInfoは存在するかのチェックも兼ねている
-        const leftColumn = SqlUtil.getColumnInfo(left);
+        const leftColumn = left.model.getColumn(left.name);
 
         // 演算子はそれぞれ正しいか？
         const useableOperator: { [key in TColumnType]: string[] } = {
@@ -51,7 +50,7 @@ export default class WhereExpression {
 
         // 右側の値がコラム指定の場合
         if (right !== null && typeof right === 'object' && 'model' in right && 'name' in right) {
-            const rightColumn = SqlUtil.getColumnInfo(right);
+            const rightColumn = right.model.getColumn(right.name);
 
             if (leftColumn.type !== rightColumn.type) {
                 throw new Error(`[${leftColumn.tableName}].[${leftColumn.columnName}]と[${rightColumn.tableName}].[${rightColumn.columnName}]はそれぞれtypeが異なります。`);

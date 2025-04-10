@@ -3,12 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const SqlUtils_1 = __importDefault(require("./SqlUtils"));
 const ValidateValueUtil_1 = __importDefault(require("./ValidateValueUtil"));
 class WhereExpression {
     static create(left, operator, right, varLength) {
         // 指定したColumnInfoは存在するかのチェックも兼ねている
-        const leftColumn = SqlUtils_1.default.getColumnInfo(left);
+        const leftColumn = left.model.getColumn(left.name);
         // 演算子はそれぞれ正しいか？
         const useableOperator = {
             number: ["=", "!=", ">", ">=", "<", "<=", "in", "not in"],
@@ -46,7 +45,7 @@ class WhereExpression {
         }
         // 右側の値がコラム指定の場合
         if (right !== null && typeof right === 'object' && 'model' in right && 'name' in right) {
-            const rightColumn = SqlUtils_1.default.getColumnInfo(right);
+            const rightColumn = right.model.getColumn(right.name);
             if (leftColumn.type !== rightColumn.type) {
                 throw new Error(`[${leftColumn.tableName}].[${leftColumn.columnName}]と[${rightColumn.tableName}].[${rightColumn.columnName}]はそれぞれtypeが異なります。`);
             }

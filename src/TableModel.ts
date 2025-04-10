@@ -2,9 +2,7 @@ import { PoolClient } from 'pg';
 import { TAggregateFuncType, TColumn, TColumnAttribute, TColumnInfo, TColumnType, TNestedCondition, TOperator, TQuery, TSelectExpression, TSortKeyword, TSqlValue } from "./Type";
 import ValidateValueUtil from './SqlUtils/ValidateValueUtil';
 import SelectExpression from './SqlUtils/SelectExpression';
-import QueryUtil from './SqlUtils/QueryUtil';
 import WhereExpression from './SqlUtils/WhereExpression';
-import SqlUtil from './SqlUtils/SqlUtils';
 
 export class TableModel {
 
@@ -14,6 +12,18 @@ export class TableModel {
             throw new Error("TableModelのcolumnsを設定してください。")
         }
         return this.columns; 
+    }
+    public getColumn(key: string) {
+        if (key in this.Columns === false) {
+            throw new Error(`${this.TableName}に${key}は存在しません。`);
+        }
+
+        return { 
+            ...this.Columns[key],
+            columnName: key,
+            tableName: this.TableName,
+            expression: `"${this.AsTableName}".${key}`
+        };
     }
     protected tableName: string = "";
     get TableName(): string { 
@@ -34,7 +44,11 @@ export class TableModel {
     public Limit?: number;
 
     private selectExpressions: Array<string> = [];
-    private joinExpressions: Array<string> = [];
+    private joinConditions: Array<{
+        type: 'inner' | 'left',
+        model: TableModel,
+        conditions: Array<TNestedCondition>
+    }> = [];
     private whereExpressions: Array<string> = [];
     private groupExpression: Array<string> = [];
     private sortExpression: Array<string> = [];
@@ -43,8 +57,14 @@ export class TableModel {
     private get createSqlFromJoinWhere(): string {
         let sql = ` FROM ${this.TableName} as "${this.AsTableName}"`;
 
-        if (this.joinExpressions.length > 0) {
-            sql += ' ' + this.joinExpressions.join(' ');
+        for (const join of this.joinConditions) {
+            sql += join.type === 'left' ? ' LEFT OUTER JOIN' : ' INNER JOIN';
+            sql += ` ${join.model.TableName} as "${join.model.AsTableName}" ON `;
+            const query = WhereExpression.createCondition(join.conditions, this, this.vars.length);
+            sql += query.sql;
+            if (query.vars !== undefined) {
+                this.vars = [...this.vars, ...query.vars]
+            }
         }
 
         if (this.whereExpressions.length > 0) {
@@ -162,15 +182,7 @@ export class TableModel {
      * @param conditions 結合条件を指定します。条件はオブジェクトまたは文字列で指定できます。
      */
     public join(joinType: 'left' | 'inner', joinModel: TableModel, conditions: Array<TNestedCondition>): void {
-        let sql = joinType === 'left' ? 'LEFT OUTER JOIN' : 'INNER JOIN';
-        sql += ` ${joinModel.TableName} as "${joinModel.AsTableName}" ON `;
-        const query = WhereExpression.createCondition(conditions, this, this.vars.length);
-        sql += query.sql;
-        if (query.vars !== undefined) {
-            this.vars = [...this.vars, ...query.vars]
-        }
-
-        this.joinExpressions.push(sql);
+        this.joinConditions.push({type: joinType, model: joinModel, conditions: conditions});
     }
 
     public where(expression: string): void;
@@ -217,14 +229,14 @@ export class TableModel {
         if (typeof column === 'string') {
             column = {model: this, name: column};
         }
-        this.groupExpression.push(SqlUtil.getColumnInfo(column).expression);
+        this.groupExpression.push(column.model.getColumn(column.name).expression);
     }
 
     public orderBy(column: string | TColumnInfo, sortKeyword: TSortKeyword) {
         if (typeof column === 'string') {
             column = { model: this, name: column };
         }
-        this.sortExpression.push(`${SqlUtil.getColumnInfo(column).expression} ${sortKeyword}`);
+        this.sortExpression.push(`${column.model.getColumn(column.name).expression} ${sortKeyword}`);
     }
 
     public orderByList(column: string | TColumnInfo, list: Array<string | number | boolean | null>, sortKeyword: TSortKeyword): void {
@@ -235,7 +247,7 @@ export class TableModel {
         if (typeof(column) == 'string') {
             column = {model: this, name: column};;
         }
-        const columnInfo = SqlUtil.getColumnInfo(column);
+        const columnInfo = column.model.getColumn(column.name);
 
         const orderConditions: Array<string> = [];
         for (let i = 0;i < list.length;i++) {
@@ -300,16 +312,12 @@ export class TableModel {
     }
 
     protected validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean): void {
+        if (Object.keys(options).length === 0) {
+            throw new Error('optionsは最低1つ以上のkey-valueが必要です。');
+        }
+
         for (const [key, value] of Object.entries(options)) {
-            if (key in this.Columns === false) {
-                throw new Error(`${key}は${this.TableName}テーブルに存在しません。`);
-            }
-
-            if (value === undefined) {
-                continue;
-            }
-
-            const column = this.Columns[key];
+            const column = this.getColumn(key);
             if (isInsert === false && column.attribute === 'primary') {
                 throw new Error(`${this.TableName}.${key}はprimary keyのため、変更できません。`);
             }
@@ -354,10 +362,10 @@ export class TableModel {
     }
 
     protected async validateInsert(options: {[key: string]: TSqlValue}) : Promise<void> {
-        for (const columnKey in this.Columns) {
-            const column = this.Columns[columnKey];
-            const name = (column.alias ?? '') === '' ? columnKey : column.alias;
-            if (options[columnKey] === undefined || options[columnKey] === null) {
+        for (const key in this.Columns) {
+            const column = this.getColumn(key);
+            const name = (column.alias ?? '') === '' ? key : column.alias;
+            if (options[key] === undefined || options[key] === null) {
                 // Null許容されていないカラムにNULLを入れようとしているか？
                 if (column.attribute === "primary" || column.attribute === "noDefault") {
                     this.throwValidationError(`${name}を入力してください。`);
@@ -368,123 +376,120 @@ export class TableModel {
 
     protected async validateUpdate(options: {[key: string]: TSqlValue}) : Promise<void> { }
     protected async validateUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<void> { }
+    protected async validateDelete() : Promise<void> { }
     protected async validateDeleteId(id: any) : Promise<void> { }
 
     public async executeInsert(options: {[key: string]: TSqlValue}) : Promise<void> {
         this.validateOptions(options, true);
         await this.validateInsert(options);
 
-        const query = QueryUtil.createInsert(options, this.TableName);
-        await this.executeQuery(query);
+        const columns: Array<string> = [];
+        const vars: Array<any> = [];
+
+        for (const [key, value] of Object.entries(options)) {
+            if (value === undefined) {
+                throw new Error(`insert optionの${key}がundefinedになっています。`);
+            }
+
+            columns.push(key);
+            vars.push(value)
+        }
+
+        const params = vars.map((_, index) => `$${index + 1}`);
+        const sql = `INSERT INTO ${this.TableName} (${columns.join(",")}) VALUES (${params.join(",")});`;
+        await this.executeQuery(sql, vars);
     }
 
-    /**
-     * SQL文の実行
-     * @param connection connection 
-     * @returns 更新数
-     */
-    // public async executeUpdate(options: {[key: string]: TSqlValue}, client: PoolClient) : Promise<number> {
+    public async executeUpdate(options: {[key: string]: TSqlValue}) : Promise<number> {
+        this.validateOptions(options, false);
+        await this.validateUpdate(options);
 
-    //     const updates = options.toObject;
-    //     this.validateOptions(options, false);
-    //     await this.validateUpdate(options);
+        const updateExpressions: Array<string> = [];
+        for (const [key, value] of Object.entries(options)) {
+            const column = this.getColumn(key);
+            ValidateValueUtil.validateValue(column, value);
+            this.vars.push(value);
+            updateExpressions.push(`${key} = $${this.vars.length}`)
+        }
 
-    //     let sql = `UPDATE ${this.TableName} SET update_at = CURRENT_TIMESTAMP`;
+        let sql = `UPDATE ${this.TableName} "${this.AsTableName}" SET ${updateExpressions.join(',')} `;
 
-    //     Object.keys(updates).forEach((camelKey) => {
+        if (this.joinConditions.length > 0) {
+            const tables: Array<string> = [];
+            for (const join of this.joinConditions) {
+                tables.push(`${join.model.TableName} as "${join.model.AsTableName}"`);
 
-    //         const snakeKey = StringUtil.formatFromCamelToSnake(camelKey);
+                const query = WhereExpression.createCondition(join.conditions, this, this.vars.length);
+                this.whereExpressions.push(query.sql);
+                if (query.vars !== undefined) {
+                    this.vars = [...this.vars, ...query.vars]
+                }
+            }
+            sql += `FROM ${tables.join(',')} `;
+        }
 
-    //         // idは更新してはいけないので、UPDATE対象から外す
-    //         // undefinedは更新対象でないので外す
-    //         if (snakeKey in this.Columns == false || snakeKey == 'id' || updates[camelKey] === undefined) {
-    //             return;
-    //         }
+        if (this.whereExpressions.length > 0) {
+            sql += "WHERE " + this.whereExpressions.join(" AND ");
+        }
 
-    //         const columnInfo = this.Columns[snakeKey];
-    //         sql += `, ${snakeKey} = ${SqlUtil.toSqlValue(columnInfo, updates[camelKey])}`
-    //     });
-
-    //     if (this.joinConditions.length > 0) {
-    //         // JOIN句ではUSING句を使用して削除する方法はあるが、使用する時に実装します。
-    //         // SQL例
-    //         // DELETE FROM table1
-    //         // USING table2
-    //         // WHERE table1.foreign_key = table2.id
-    //         // AND table2.some_column = 'some_value';
-    //         // this.joinConditions.forEach((joinCondition: { 
-    //         //     type: 'left' | 'inner',
-    //         //     joinBaseModel: BaseModel,
-    //         //     conditions: Array<string>
-    //         //     }) => {
-    //         //     sql += {
-    //         //         'left' : " LEFT OUTER JOIN ",
-    //         //         'inner' : " INNER JOIN "
-    //         //     }[joinCondition.type];
-    //         //     sql += `${joinCondition.joinBaseModel.TableName} as "${joinCondition.joinBaseModel.AsTableName}" ON `;
-
-    //         //     sql += joinCondition.conditions.join(" AND ");
-    //         // })
-    //     }
-
-    //     if (this.whereConditions.length > 0) {
-    //         sql += " WHERE " + this.whereConditions.join(" AND ");
-    //     }
-
-    //     let data = await this.executeQuery(sql, client);
-
-    //     return data.rowCount;
-    // }
+        const data = await this.executeQuery(sql, this.vars);
+        return data.rowCount;
+    }
 
     public async executeUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<boolean> {
         ValidateValueUtil.validateId(this.Columns, id);
         this.validateOptions(options, false);
         await this.validateUpdateId(id, options);
         await this.validateUpdate(options);
+
+        const updateExpressions: Array<string> = [];
+        const vars: Array<any> = [];
+
+        for (const [key, value] of Object.entries(options)) {
+            if (value === undefined) {
+                throw new Error(`update optionの${key}がundefinedになっています。`);
+            }
+
+            const column = this.getColumn(key);
+            if (column.attribute === 'primary') {
+                throw new Error(`primary keyである${this.TableName}.${key}は変更できません。`);
+            }
+
+            vars.push(value);
+            updateExpressions.push(`${key} = $${vars.length}`);
+        }
+        vars.push(id);
         
-        const query = QueryUtil.createUpdateId(id, options, this);
-        const data = await this.executeQuery(query);
+        const sql = `UPDATE ${this.TableName} SET ${updateExpressions.join(',')} WHERE id = $${vars.length}`;
+        const data = await this.executeQuery(sql, vars);
         return data.rowCount == 1;
     }
 
-    // /**
-    //  * SQL文の実行
-    //  * @param connection connection 
-    //  * @returns datas
-    //  */
-    // public async executeDelete(client: PoolClient) : Promise<number> {
+    public async executeDelete() : Promise<number> {
+        this.validateDelete();
+        let sql = `DELETE FROM ${this.TableName} "${this.AsTableName}" `;
 
-    //     let sql = `DELETE FROM ${this.TableName}`;
+        if (this.joinConditions.length > 0) {
+            const tables: Array<string> = [];
+            for (const join of this.joinConditions) {
+                tables.push(`${join.model.TableName} as "${join.model.AsTableName}"`);
 
-    //     if (this.joinConditions.length > 0) {
-    //         // JOIN句ではUSING句を使用して削除する方法はあるが、使用する時に実装します。
-    //         // SQL例
-    //         // DELETE FROM table1
-    //         // USING table2
-    //         // WHERE table1.foreign_key = table2.id
-    //         // AND table2.some_column = 'some_value';
-    //         // this.joinConditions.forEach((joinCondition: { 
-    //         //     type: 'left' | 'inner',
-    //         //     joinBaseModel: BaseModel,
-    //         //     conditions: Array<string>
-    //         //     }) => {
-    //         //     sql += {
-    //         //         'left' : " LEFT OUTER JOIN ",
-    //         //         'inner' : " INNER JOIN "
-    //         //     }[joinCondition.type];
-    //         //     sql += `${joinCondition.joinBaseModel.TableName} as "${joinCondition.joinBaseModel.AsTableName}" ON `;
+                const query = WhereExpression.createCondition(join.conditions, this, this.vars.length);
+                this.whereExpressions.push(query.sql);
+                if (query.vars !== undefined) {
+                    this.vars = [...this.vars, ...query.vars]
+                }
+                sql += ` USING ${tables.join(',')} `;
+            }
+        }
 
-    //         //     sql += joinCondition.conditions.join(" AND ");
-    //         // })
-    //     }
+        if (this.whereExpressions.length > 0) {
+            sql += "WHERE " + this.whereExpressions.join(" AND ");
+        }
 
-    //     if (this.whereConditions.length > 0) {
-    //         sql += " WHERE " + this.whereConditions.join(" AND ");
-    //     }
-
-    //     const datas = await this.executeQuery(sql, client);
-    //     return datas.rowCount;
-    // }
+        const datas = await this.executeQuery(sql, this.vars);
+        return datas.rowCount;
+    }
 
     public async executeDeleteId(id: any) : Promise<boolean> {
         ValidateValueUtil.validateId(this.Columns, id);
@@ -502,7 +507,7 @@ export class TableModel {
         // 初期化項目
         this.selectExpressions = [];
         this.whereExpressions = [];
-        this.joinExpressions = [];
+        this.joinConditions = [];
         this.sortExpression = [];
         this.SortKeyword = 'asc';
         this.groupExpression = [];
