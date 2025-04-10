@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/n-daira/npm_pack_table_model.git"
+    "url": "git+https://github.com/n-daira/npm-pack_pg-table-model.git"
   },
   "license": "MIT",
   "author": "Sho Nakadaira",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/n-daira/npm_pack_table_model/issues"
+    "url": "https://github.com/n-daira/npm-pack_pg-table-model/issues"
   },
-  "homepage": "https://github.com/n-daira/npm_pack_table_model#readme",
+  "homepage": "https://github.com/n-daira/npm-pack_pg-table-model#readme",
   "devDependencies": {
     "@types/jest": "29.5.14",
     "@types/pg": "8.11.11",
