@@ -1,6 +1,6 @@
 import { PoolClient } from 'pg';
 
-declare module 'test_table_model' {
+declare module 'pg-table-model' {
     export type TSqlValue = string | number | boolean | Date;
     export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
