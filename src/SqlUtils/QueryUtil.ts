@@ -1,7 +1,19 @@
 import { TableModel } from "../TableModel";
-import { TQuery } from "../Type";
+import { TQuery, TSqlValue } from "../Type";
 
 export default class QueryUtil {
+
+    static createSqlFromJoinWhere(model: TableModel, join: Array<string>, where: Array<string>) {
+        let sql = ` FROM ${model.TableName} as "${model.AsTableName}"`;
+
+        if (join.length > 0) {
+            sql += ' ' + join.join(' ');
+        }
+
+        if (where.length > 0) {
+            sql += " WHERE " + where.join(" AND ");
+        }
+    }
 
     /**
      * Creates an SQL insert statement.
@@ -13,7 +25,7 @@ export default class QueryUtil {
      * @returns An object containing the SQL string and the variables.
      *          SQL文字列と変数を含むオブジェクト。
      */
-    static createInsert(options: {[key: string]: any}, tableName: string) : TQuery {
+    static createInsert(options: {[key: string]: TSqlValue}, tableName: string) : TQuery {
         const insertColumns: Array<string> = [];
         const insertValues: Array<any> = [];
         const insertVar: Array<string> = [];
@@ -34,6 +46,10 @@ export default class QueryUtil {
         }
     }
 
+    // static createUpdate(options) {
+
+    // }
+
     /**
      * Updates a record by its ID.
      * IDでレコードを更新します。
@@ -47,7 +63,7 @@ export default class QueryUtil {
      * @returns An object containing the SQL string and the variables.
      *          SQL文字列と変数を含むオブジェクト。
      */
-    static createUpdateId(id: any, options: {[key: string]: any}, tableModel: TableModel) : TQuery {
+    static createUpdateId(id: any, options: {[key: string]: TSqlValue}, tableModel: TableModel) : TQuery {
         const updateAlias: Array<string> = [];
         const vars: Array<any> = [];
 

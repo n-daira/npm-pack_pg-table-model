@@ -34,7 +34,10 @@ class SelectExpression {
             select = `${func}(${select})`;
             switch (func) {
                 case 'sum':
-                case 'ave':
+                case 'max':
+                case 'min':
+                case 'avg':
+                case 'count':
                     // なぜかStringで返却されるため、INTでキャスト
                     select = `CAST(${select} as INTEGER)`;
                     break;

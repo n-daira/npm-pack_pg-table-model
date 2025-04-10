@@ -8,10 +8,11 @@ export type TOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" 
 export type TColumnInfo = { model: TableModel, name: string }
 export type TQuery = {sql: string, vars?: Array<any>};
 export type TSelectExpression = { expression: string, alias: string }
-export type TAggregateFuncType = 'sum' | 'ave';
+export type TAggregateFuncType = 'sum' | 'avg' | 'max' | 'min' | 'count';
 export type TCondition = string | {
     l: string | TColumnInfo, 
     o: TOperator, 
     r: TSqlValue | null | Array<TSqlValue> | TColumnInfo
 };
 export type TNestedCondition = TCondition | ['AND' | 'OR', ...TNestedCondition[]] | TNestedCondition[];
+export type TSortKeyword = 'desc' | 'asc';

@@ -1,6 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 class QueryUtil {
+    static createSqlFromJoinWhere(model, join, where) {
+        let sql = ` FROM ${model.TableName} as "${model.AsTableName}"`;
+        if (join.length > 0) {
+            sql += ' ' + join.join(' ');
+        }
+        if (where.length > 0) {
+            sql += " WHERE " + where.join(" AND ");
+        }
+    }
     /**
      * Creates an SQL insert statement.
      * SQL挿入文を作成します。
@@ -28,6 +37,8 @@ class QueryUtil {
             vars: insertValues
         };
     }
+    // static createUpdate(options) {
+    // }
     /**
      * Updates a record by its ID.
      * IDでレコードを更新します。
