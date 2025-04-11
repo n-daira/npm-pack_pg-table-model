@@ -6,6 +6,19 @@ import WhereExpression from './SqlUtils/WhereExpression';
 
 export class TableModel {
 
+    protected readonly dbName: string = "default";
+    get DbName(): string { return this.dbName; }
+    protected readonly tableName: string = "";
+    get TableName(): string { 
+        if (this.tableName === "") {
+            throw new Error("Please set the tableName for TableModel.");
+        }
+        return this.tableName;
+    }
+    protected readonly tableDescription: string = "";
+    get TableDescription(): string { return this.tableDescription; }
+    protected readonly comment: string = "";
+    get Comment(): string { return this.comment; }
     protected readonly columns: { [key: string]: TColumn } = {};
     get Columns(): { [key: string]: TColumn } { 
         if (Object.keys(this.columns).length === 0) {
@@ -24,13 +37,6 @@ export class TableModel {
             tableName: this.TableName,
             expression: `"${this.TableAlias}".${key}`
         };
-    }
-    protected readonly tableName: string = "";
-    get TableName(): string { 
-        if (this.tableName === "") {
-            throw new Error("Please set the tableName for TableModel.");
-        }
-        return this.tableName;
     }
 
     protected readonly tableAlias?: string;

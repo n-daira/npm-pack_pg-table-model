@@ -17,6 +17,15 @@ const ValidateValueUtil_1 = __importDefault(require("./SqlUtils/ValidateValueUti
 const SelectExpression_1 = __importDefault(require("./SqlUtils/SelectExpression"));
 const WhereExpression_1 = __importDefault(require("./SqlUtils/WhereExpression"));
 class TableModel {
+    get DbName() { return this.dbName; }
+    get TableName() {
+        if (this.tableName === "") {
+            throw new Error("Please set the tableName for TableModel.");
+        }
+        return this.tableName;
+    }
+    get TableDescription() { return this.tableDescription; }
+    get Comment() { return this.comment; }
     get Columns() {
         if (Object.keys(this.columns).length === 0) {
             throw new Error("Please set the columns for TableModel.");
@@ -28,12 +37,6 @@ class TableModel {
             throw new Error(`${this.TableName} does not contain ${key}.`);
         }
         return Object.assign(Object.assign({}, this.Columns[key]), { columnName: key, tableName: this.TableName, expression: `"${this.TableAlias}".${key}` });
-    }
-    get TableName() {
-        if (this.tableName === "") {
-            throw new Error("Please set the tableName for TableModel.");
-        }
-        return this.tableName;
     }
     get TableAlias() {
         return this.tableAlias === undefined ? this.TableName : this.tableAlias;
@@ -77,8 +80,11 @@ class TableModel {
         }
     }
     constructor(client, tableAlias) {
-        this.columns = {};
+        this.dbName = "default";
         this.tableName = "";
+        this.tableDescription = "";
+        this.comment = "";
+        this.columns = {};
         this.IsOutputLog = false;
         this.SortKeyword = 'asc';
         this.PageCount = 10;

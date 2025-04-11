@@ -1,8 +1,10 @@
 import { PoolClient } from 'pg';
 
 declare module 'pg-table-model' {
+    export function createTableDoc(models: Array<TableModel>): string;
+
     export type TSqlValue = string | number | boolean | Date;
-    export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute};
+    export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, fk?: string, comment?: string};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
     export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
     export type TOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" | "h2f_like" | "h2f_ilike" | "in" | "not in";
@@ -19,10 +21,16 @@ declare module 'pg-table-model' {
     export type TSortKeyword = 'desc' | 'asc';
 
     export class TableModel {
-        protected readonly columns: { [key: string]: TColumn };
-        get Columns(): { [key: string]: TColumn };
+        protected readonly dbName: string;
+        get DbName(): string;
         protected readonly tableName: string;
         get TableName(): string;
+        protected readonly tableDescription: string;
+        get TableDescription(): string;
+        protected readonly comment: string;
+        get Comment(): string;
+        protected readonly columns: { [key: string]: TColumn };
+        get Columns(): { [key: string]: TColumn };
         get TableAlias(): string;
         public IsOutputLog: boolean;
         public SortKeyword: TSortKeyword;
