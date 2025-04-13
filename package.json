@@ -1,10 +1,11 @@
 {
   "name": "pg-table-model",
-  "version": "1.0.5",
+  "version": "1.0.15",
   "description": "",
   "main": "dist/index.js",
   "types": "index.d.ts",
   "scripts": {
+    "build": "rm -rf dist/* && tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

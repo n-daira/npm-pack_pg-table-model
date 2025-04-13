@@ -1,8 +1,6 @@
-import { PoolClient } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 declare module 'pg-table-model' {
-    export function createTableDoc(models: Array<TableModel>): string;
-
     export type TSqlValue = string | number | boolean | Date;
     export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, fk?: string, comment?: string};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
@@ -79,5 +77,15 @@ declare module 'pg-table-model' {
         public orderBySentence(query: string, sortKeyword: TSortKeyword): void;
 
         public groupBy(column: string | TColumnInfo): void;
+    }
+
+    export function createTableDoc(models: Array<TableModel>): string;
+    export function migrate(migrateFilePaths: Array<string>, pool: Pool): Promise<void>;
+    export function rollback(toNumber: number, pool: Pool): Promise<void>;
+    export class MigrateTable {
+        protected readonly migrateSql: string;
+        protected readonly rollbackSql: string;
+        protected readonly addGrantTables: Array<string>;
+        protected readonly user: string;
     }
 }
