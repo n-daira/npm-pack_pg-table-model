@@ -1,6 +1,6 @@
 import { TableModel } from "./TableModel";
 
-export type TSqlValue = string | number | boolean | Date;
+export type TSqlValue = string | number | boolean | Date | null;
 export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, fk?: string, comment?: string};
 export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
 export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
@@ -12,7 +12,7 @@ export type TAggregateFuncType = 'sum' | 'avg' | 'max' | 'min' | 'count';
 export type TCondition = string | {
     l: string | TColumnInfo, 
     o: TOperator, 
-    r: TSqlValue | null | Array<TSqlValue> | TColumnInfo
+    r: TSqlValue | Array<TSqlValue> | TColumnInfo
 };
 export type TNestedCondition = TCondition | ['AND' | 'OR', ...TNestedCondition[]] | TNestedCondition[];
 export type TSortKeyword = 'desc' | 'asc';

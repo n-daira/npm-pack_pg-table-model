@@ -1,7 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 
 declare module 'pg-table-model' {
-    export type TSqlValue = string | number | boolean | Date;
+    export type TSqlValue = string | number | boolean | Date | null;
     export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, fk?: string, comment?: string};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
     export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
@@ -13,7 +13,7 @@ declare module 'pg-table-model' {
     export type TCondition = string | {
         l: string | TColumnInfo, 
         o: TOperator, 
-        r: TSqlValue | null | Array<TSqlValue> | TColumnInfo
+        r: TSqlValue | Array<TSqlValue> | TColumnInfo
     };
     export type TNestedCondition = TCondition | ['AND' | 'OR', ...TNestedCondition[]] | TNestedCondition[];
     export type TSortKeyword = 'desc' | 'asc';
@@ -35,6 +35,7 @@ declare module 'pg-table-model' {
         public Offset: number;
         public Limit: number;
         public PageCount: number;
+        set OffsetPage(value: number);
 
         constructor(client: PoolClient);
         constructor(client: PoolClient, tableAlias: string);
@@ -71,6 +72,7 @@ declare module 'pg-table-model' {
         public executeDeleteId(id: any) : Promise<boolean>;
 
         public executeSelect<T = {[key: string]: any}>(): Promise<Array<T>>;
+        public executeSelectWithCount<T = any>(): Promise<{ datas: Array<T>, count: number, lastPage: number}>;
 
         public orderBy(column: string | TColumnInfo, sortKeyword: TSortKeyword): void;
         public orderByList(column: string | TColumnInfo, list: Array<string | number | boolean | null>, sortKeyword: TSortKeyword): void;

@@ -300,7 +300,7 @@ export class TableModel {
         return data.rows as Array<T>;
     }
 
-    public async executeSelectWithCount<T = any>() {
+    public async executeSelectWithCount<T = any>(): Promise<{ datas: Array<T>, count: number, lastPage: number}> {
         if (this.selectExpressions.length == 0) {
             this.select();
         }
