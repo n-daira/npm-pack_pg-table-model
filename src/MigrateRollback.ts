@@ -1,6 +1,7 @@
 import { Pool } from "pg";
+import { MigrateTable } from "./MigrateTable";
 
-export const migrate = async (migrateFilePaths: Array<string>, pool: Pool): Promise<void> => {
+export const migrate = async (migrates: Array<MigrateTable>, pool: Pool): Promise<void> => {
 
     // create migration table
     try {
@@ -24,41 +25,26 @@ export const migrate = async (migrateFilePaths: Array<string>, pool: Pool): Prom
         client.query('BEGIN');
 
         const datas = await getMigrations(pool);
-        const migrationDatas = datas.datas;
         let maxNumber = datas.maxNumber;
-        for (const filePath of migrateFilePaths) {
-            const splitSlash = filePath.split('/');
-            const file = splitSlash.pop();
-            if (file === undefined) {
-                continue;
-            }
+        for (const migrate of migrates) {
+            const className = migrate.constructor.name;
+            await client.query(migrate.MigrateSql);
 
-            if (migrationDatas.filter(data => data.script_file == file).length > 0) {
-                console.log(`${file} has already been executed`);
-                continue;
-            }
-    
-            const module = await import(filePath.replace('.ts', ''));
-            const migrateClass = module.default;
-            const migrateInstance = new migrateClass();
-
-            await client.query(migrateInstance.MigrateSql);
-
-            const grantSql = migrateInstance.AddGrantSql;
+            const grantSql = migrate.AddGrantSql;
             if (grantSql !== null) {
-                await client.query(migrateInstance.AddGrantSql);
+                await client.query(grantSql);
             }
     
             const migrateInsertSql = `
                 INSERT INTO migrations
                 (migration_number, script_file, rollback_script)
-                VALUES (${maxNumber + 1}, '${file}', '${migrateInstance.RollbackSql}');
+                VALUES (${maxNumber + 1}, '${className}', '${migrate.RollbackSql}');
             `;
             maxNumber++;
     
             await client.query(migrateInsertSql);
     
-            console.log(`Execution completed: ${file}`);
+            console.log(`Execution completed: ${className}`);
         }
         
         await client.query('COMMIT');

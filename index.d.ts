@@ -82,7 +82,7 @@ declare module 'pg-table-model' {
     }
 
     export function createTableDoc(models: Array<TableModel>): string;
-    export function migrate(migrateFilePaths: Array<string>, pool: Pool): Promise<void>;
+    export function migrate(migrates: Array<MigrateTable>, pool: Pool): Promise<void>;
     export function rollback(toNumber: number, pool: Pool): Promise<void>;
     export class MigrateTable {
         protected readonly migrateSql: string;

@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -43,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.rollback = exports.migrate = void 0;
-const migrate = (migrateFilePaths, pool) => __awaiter(void 0, void 0, void 0, function* () {
+const migrate = (migrates, pool) => __awaiter(void 0, void 0, void 0, function* () {
     // create migration table
     try {
         if ((yield isExistMigrationTable(pool)) == false) {
@@ -65,34 +32,22 @@ const migrate = (migrateFilePaths, pool) => __awaiter(void 0, void 0, void 0, fu
     try {
         client.query('BEGIN');
         const datas = yield getMigrations(pool);
-        const migrationDatas = datas.datas;
         let maxNumber = datas.maxNumber;
-        for (const filePath of migrateFilePaths) {
-            const splitSlash = filePath.split('/');
-            const file = splitSlash.pop();
-            if (file === undefined) {
-                continue;
-            }
-            if (migrationDatas.filter(data => data.script_file == file).length > 0) {
-                console.log(`${file} has already been executed`);
-                continue;
-            }
-            const module = yield Promise.resolve(`${filePath.replace('.ts', '')}`).then(s => __importStar(require(s)));
-            const migrateClass = module.default;
-            const migrateInstance = new migrateClass();
-            yield client.query(migrateInstance.MigrateSql);
-            const grantSql = migrateInstance.AddGrantSql;
+        for (const migrate of migrates) {
+            const className = migrate.constructor.name;
+            yield client.query(migrate.MigrateSql);
+            const grantSql = migrate.AddGrantSql;
             if (grantSql !== null) {
-                yield client.query(migrateInstance.AddGrantSql);
+                yield client.query(grantSql);
             }
             const migrateInsertSql = `
                 INSERT INTO migrations
                 (migration_number, script_file, rollback_script)
-                VALUES (${maxNumber + 1}, '${file}', '${migrateInstance.RollbackSql}');
+                VALUES (${maxNumber + 1}, '${className}', '${migrate.RollbackSql}');
             `;
             maxNumber++;
             yield client.query(migrateInsertSql);
-            console.log(`Execution completed: ${file}`);
+            console.log(`Execution completed: ${className}`);
         }
         yield client.query('COMMIT');
         console.log('Migration completed');
