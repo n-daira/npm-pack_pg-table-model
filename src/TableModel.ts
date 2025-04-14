@@ -326,7 +326,7 @@ export class TableModel {
         'null': '{name} is not allowed to be null.',
         'notInput': 'Please enter {name}.'
     }
-    protected throwValidationError(message: string): never {
+    protected throwValidationError(code: string, message: string): never {
         throw new Error(message);
     }
 
@@ -346,11 +346,11 @@ export class TableModel {
                 if (column.attribute === 'nullable') {
                     continue;
                 }
-                this.throwValidationError(this.errorMessages.null.replace('{name}', name));
+                this.throwValidationError("001", this.errorMessages.null.replace('{name}', name));
             }
 
             if (ValidateValueUtil.isErrorValue(column.type, value)) {
-                this.throwValidationError(this.errorMessages[column.type].replace('{name}', name));
+                this.throwValidationError("002", this.errorMessages[column.type].replace('{name}', name));
             }
 
             if (column.type === 'string') {
@@ -359,7 +359,7 @@ export class TableModel {
                 }
 
                 if (value.toString().length > column.length) {
-                    this.throwValidationError(this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
+                    this.throwValidationError("003", this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
                 }
             }
         }
@@ -372,7 +372,7 @@ export class TableModel {
             if (options[key] === undefined || options[key] === null) {
                 // Null許容されていないカラムにNULLを入れようとしているか？
                 if (column.attribute === "primary" || column.attribute === "noDefault") {
-                    this.throwValidationError(this.errorMessages.notInput.replace('{name}', name));
+                    this.throwValidationError("004", this.errorMessages.notInput.replace('{name}', name));
                 }
             }
         }

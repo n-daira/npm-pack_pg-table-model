@@ -57,7 +57,7 @@ declare module 'pg-table-model' {
         public findId<T = {[key: string]: any}>(id: any): Promise<T | null>;
 
         protected readonly errorMessages: Record<TColumnType | 'length' | 'null' | 'notInput', string>
-        protected throwValidationError(message: string): never;
+        protected throwValidationError(code: string, message: string): never;
         protected validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean) : void;
         protected validateInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
         protected validateUpdate(options: {[key: string]: TSqlValue}) : Promise<void>;

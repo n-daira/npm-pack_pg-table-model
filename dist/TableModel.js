@@ -287,7 +287,7 @@ class TableModel {
             return { datas: data.rows, count: Number(countData.rows[0].count), lastPage: Math.ceil(Number(countData.rows[0].count) / this.PageCount) };
         });
     }
-    throwValidationError(message) {
+    throwValidationError(code, message) {
         throw new Error(message);
     }
     validateOptions(options, isInsert) {
@@ -304,17 +304,17 @@ class TableModel {
                 if (column.attribute === 'nullable') {
                     continue;
                 }
-                this.throwValidationError(this.errorMessages.null.replace('{name}', name));
+                this.throwValidationError("001", this.errorMessages.null.replace('{name}', name));
             }
             if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
-                this.throwValidationError(this.errorMessages[column.type].replace('{name}', name));
+                this.throwValidationError("002", this.errorMessages[column.type].replace('{name}', name));
             }
             if (column.type === 'string') {
                 if (column.length === undefined) {
                     throw new Error("For strings, please specify the length of the column.");
                 }
                 if (value.toString().length > column.length) {
-                    this.throwValidationError(this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
+                    this.throwValidationError("003", this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
                 }
             }
         }
@@ -327,7 +327,7 @@ class TableModel {
                 if (options[key] === undefined || options[key] === null) {
                     // Null許容されていないカラムにNULLを入れようとしているか？
                     if (column.attribute === "primary" || column.attribute === "noDefault") {
-                        this.throwValidationError(this.errorMessages.notInput.replace('{name}', name));
+                        this.throwValidationError("004", this.errorMessages.notInput.replace('{name}', name));
                     }
                 }
             }
