@@ -90,4 +90,20 @@ declare module 'pg-table-model' {
         protected readonly addGrantTables: Array<string>;
         protected readonly user: string;
     }
+
+    export class MigrateDatabase {
+        constructor(dbName: string, userName: string);
+    
+        get DbName(): string;
+        get UserName(): string;
+    
+        public CheckExistUser(): string;
+        public CreateUserSql(password?: string): string;
+        public CheckExistDb(): string;
+        public CreateDbSql(collateType?: string): string;
+        public RollbackDbSql(): string;
+        public RollbackUserSql(otherUserName: string): string;
+    
+        private trimSpaceLineSql(str: string): string;
+    }
 }
