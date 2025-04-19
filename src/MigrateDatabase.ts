@@ -1,34 +1,44 @@
+import { Pool } from "pg";
+
 export class MigrateDatabase {
 
     private dbName: string;
     get DbName(): string { return this.dbName; }
     private userName: string;
     get UserName(): string { return this.userName; }
+    private password: string | null = null;
+    get Password(): string | null {
+        return this.password;
+    }
+    private pool: Pool;
 
-    constructor (dbName: string, userName: string) {
+    constructor (dbName: string, userName: string, pool: Pool) {
         this.dbName = dbName;
         this.userName = userName;
+        this.pool = pool;
     }
 
-    public CheckExistUser() {
+    public async IsExistUser(): Promise<boolean> {
         const sql = `
-            SELECT count(*) > 0
+            SELECT count(*) > 0 as is_exist
             FROM pg_roles
             WHERE rolname = '${this.UserName}';
         `;
-        return this.trimSpaceLineSql(sql);
+        const datas = await this.pool.query(sql);
+        return datas.rows[0].is_exist;
     }
 
-    public CreateUserSql(password: string = ''): string {
+    public async CreateUser(password: string = ''): Promise<void> {
         if (password.trim() === '') {
             password = '';
 
-            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:,.<>?';
-            for (let i = 0; i < length; i++) {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$%^&*_+|;:.<>?';
+            for (let i = 0; i < 36; i++) {
                 const randomIndex = Math.floor(Math.random() * characters.length);
                 password += characters[randomIndex];
             }
         }
+        this.password = password;
 
         const sql = `
             DO $$
@@ -46,19 +56,20 @@ export class MigrateDatabase {
             ALTER DEFAULT PRIVILEGES IN SCHEMA public
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${this.UserName};
         `;
-        return this.trimSpaceLineSql(sql);
+        await this.pool.query(sql);
     }
 
-    public CheckExistDb() {
+    public async IsExistDb(): Promise<boolean> {
         const sql = `
-            SELECT count(*) > 0
+            SELECT count(*) > 0 as is_exist
             FROM pg_database
-            WHERE datname = '${this.UserName}';
+            WHERE datname = '${this.DbName}';
         `;
-        return this.trimSpaceLineSql(sql);
+        const datas = await this.pool.query(sql);
+        return datas.rows[0].is_exist;
     }
 
-    public CreateDbSql(collateType: string = 'C'): string {
+    public async CreateDb(collateType: string = 'C'): Promise<void> {
         const sql = `
             CREATE DATABASE ${this.DbName}
                 WITH OWNER = ${this.UserName}
@@ -67,7 +78,7 @@ export class MigrateDatabase {
                 LC_CTYPE = '${collateType}'
                 CONNECTION LIMIT = -1;
         `;
-        return this.trimSpaceLineSql(sql);
+        await this.pool.query(sql);
     }
 
     public RollbackDbSql(): string {

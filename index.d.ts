@@ -83,6 +83,8 @@ declare module 'pg-table-model' {
 
     export function createTableDoc(models: Array<TableModel>): string;
     export function migrate(migrates: Array<MigrateTable>, pool: Pool): Promise<void>;
+    export function migrate(migrates: Array<MigrateTable>, pool: Pool): Promise<void>;
+    export function rollback(toNumber: number, pool: Pool): Promise<void>;
     export function rollback(toNumber: number, pool: Pool): Promise<void>;
     export class MigrateTable {
         protected readonly migrateSql: string;
@@ -92,18 +94,17 @@ declare module 'pg-table-model' {
     }
 
     export class MigrateDatabase {
-        constructor(dbName: string, userName: string);
+        constructor(dbName: string, userName: string, pool: Pool);
     
         get DbName(): string;
         get UserName(): string;
+        get Password(): string | null;
     
-        public CheckExistUser(): string;
-        public CreateUserSql(password?: string): string;
-        public CheckExistDb(): string;
-        public CreateDbSql(collateType?: string): string;
+        public IsExistUser(): Promise<boolean>;
+        public CreateUser(password?: string): Promise<void>;
+        public IsExistDb(): Promise<boolean>;
+        public CreateDb(collateType?: string): Promise<void>;
         public RollbackDbSql(): string;
         public RollbackUserSql(otherUserName: string): string;
-    
-        private trimSpaceLineSql(str: string): string;
     }
 }

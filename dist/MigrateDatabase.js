@@ -1,31 +1,50 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MigrateDatabase = void 0;
 class MigrateDatabase {
     get DbName() { return this.dbName; }
     get UserName() { return this.userName; }
-    constructor(dbName, userName) {
+    get Password() {
+        return this.password;
+    }
+    constructor(dbName, userName, pool) {
+        this.password = null;
         this.dbName = dbName;
         this.userName = userName;
+        this.pool = pool;
     }
-    CheckExistUser() {
-        const sql = `
-            SELECT count(*) > 0
+    IsExistUser() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const sql = `
+            SELECT count(*) > 0 as is_exist
             FROM pg_roles
             WHERE rolname = '${this.UserName}';
         `;
-        return this.trimSpaceLineSql(sql);
+            const datas = yield this.pool.query(sql);
+            return datas.rows[0].is_exist;
+        });
     }
-    CreateUserSql(password = '') {
-        if (password.trim() === '') {
-            password = '';
-            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:,.<>?';
-            for (let i = 0; i < length; i++) {
-                const randomIndex = Math.floor(Math.random() * characters.length);
-                password += characters[randomIndex];
+    CreateUser() {
+        return __awaiter(this, arguments, void 0, function* (password = '') {
+            if (password.trim() === '') {
+                password = '';
+                const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$%^&*_+|;:.<>?';
+                for (let i = 0; i < 36; i++) {
+                    const randomIndex = Math.floor(Math.random() * characters.length);
+                    password += characters[randomIndex];
+                }
             }
-        }
-        const sql = `
+            this.password = password;
+            const sql = `
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -41,18 +60,23 @@ class MigrateDatabase {
             ALTER DEFAULT PRIVILEGES IN SCHEMA public
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${this.UserName};
         `;
-        return this.trimSpaceLineSql(sql);
+            yield this.pool.query(sql);
+        });
     }
-    CheckExistDb() {
-        const sql = `
-            SELECT count(*) > 0
+    IsExistDb() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const sql = `
+            SELECT count(*) > 0 as is_exist
             FROM pg_database
-            WHERE datname = '${this.UserName}';
+            WHERE datname = '${this.DbName}';
         `;
-        return this.trimSpaceLineSql(sql);
+            const datas = yield this.pool.query(sql);
+            return datas.rows[0].is_exist;
+        });
     }
-    CreateDbSql(collateType = 'C') {
-        const sql = `
+    CreateDb() {
+        return __awaiter(this, arguments, void 0, function* (collateType = 'C') {
+            const sql = `
             CREATE DATABASE ${this.DbName}
                 WITH OWNER = ${this.UserName}
                 ENCODING = 'UTF8'
@@ -60,7 +84,8 @@ class MigrateDatabase {
                 LC_CTYPE = '${collateType}'
                 CONNECTION LIMIT = -1;
         `;
-        return this.trimSpaceLineSql(sql);
+            yield this.pool.query(sql);
+        });
     }
     RollbackDbSql() {
         const sql = `
