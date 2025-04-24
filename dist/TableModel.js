@@ -112,17 +112,17 @@ class TableModel {
         }
     }
     findId(id_1) {
-        return __awaiter(this, arguments, void 0, function* (id, selectColumns = "*", selectExpressions = null) {
+        return __awaiter(this, arguments, void 0, function* (id, selectColumns = "*", selectExpressions = null, keyFormat = 'snake') {
             ValidateValueUtil_1.default.validateId(this.Columns, id);
             let selects = [];
             if (selectColumns == "*") {
                 for (const key of Object.keys(this.Columns)) {
-                    selects.push(SelectExpression_1.default.create({ model: this, name: key }));
+                    selects.push(SelectExpression_1.default.create({ model: this, name: key }, null, null, keyFormat));
                 }
             }
             else if (selectColumns != null) {
                 for (const key of selectColumns) {
-                    selects.push(SelectExpression_1.default.create({ model: this, name: key }));
+                    selects.push(SelectExpression_1.default.create({ model: this, name: key }, null, null, keyFormat));
                 }
             }
             if (selectExpressions != null) {
@@ -135,23 +135,43 @@ class TableModel {
             return datas.rowCount == 0 ? null : datas.rows[0];
         });
     }
-    select(param1 = "*", param2) {
+    select(param1 = "*", param2, param3) {
         var _a, _b;
         if (param1 === "*") {
-            const model = param2 instanceof TableModel ? param2 : this;
+            let model = this;
+            let keyFormat = 'snake';
+            if (param2 instanceof TableModel) {
+                model = param2;
+                if (param3 === 'snake' || param3 === 'lowerCamel') {
+                    keyFormat = param3;
+                }
+            }
+            else if (param2 === 'snake' || param2 === 'lowerCamel') {
+                keyFormat = param2;
+            }
             for (const key of Object.keys(model.Columns)) {
-                this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }));
+                this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }, null, null, keyFormat));
             }
             return;
         }
         if (Array.isArray(param1)) {
-            const model = param2 instanceof TableModel ? param2 : this;
+            let model = this;
+            let keyFormat = 'snake';
+            if (param2 instanceof TableModel) {
+                model = param2;
+                if (param3 === 'snake' || param3 === 'lowerCamel') {
+                    keyFormat = param3;
+                }
+            }
+            else if (param2 === 'snake' || param2 === 'lowerCamel') {
+                keyFormat = param2;
+            }
             for (const key of param1) {
                 if (typeof key === 'string') {
-                    this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }));
+                    this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key }, null, null, keyFormat));
                 }
                 else {
-                    this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key.name }, (_a = key.func) !== null && _a !== void 0 ? _a : null, (_b = key.alias) !== null && _b !== void 0 ? _b : ''));
+                    this.selectExpressions.push(SelectExpression_1.default.create({ model: model, name: key.name }, (_a = key.func) !== null && _a !== void 0 ? _a : null, (_b = key.alias) !== null && _b !== void 0 ? _b : null, keyFormat));
                 }
             }
             return;
@@ -291,33 +311,35 @@ class TableModel {
         throw new Error(message);
     }
     validateOptions(options, isInsert) {
-        if (Object.keys(options).length === 0) {
-            throw new Error('At least one key-value pair is required in options.');
-        }
-        for (const [key, value] of Object.entries(options)) {
-            const column = this.getColumn(key);
-            if (isInsert === false && column.attribute === 'primary') {
-                throw new Error(`${this.TableName}.${key} cannot be modified because it is a primary key.`);
+        return __awaiter(this, void 0, void 0, function* () {
+            if (Object.keys(options).length === 0) {
+                throw new Error('At least one key-value pair is required in options.');
             }
-            const name = (column.alias === undefined || column.alias === '') ? key : column.alias;
-            if (value === null) {
-                if (column.attribute === 'nullable') {
-                    continue;
+            for (const [key, value] of Object.entries(options)) {
+                const column = this.getColumn(key);
+                if (isInsert === false && column.attribute === 'primary') {
+                    throw new Error(`${this.TableName}.${key} cannot be modified because it is a primary key.`);
                 }
-                this.throwValidationError("001", this.errorMessages.null.replace('{name}', name));
-            }
-            if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
-                this.throwValidationError("002", this.errorMessages[column.type].replace('{name}', name));
-            }
-            if (column.type === 'string') {
-                if (column.length === undefined) {
-                    throw new Error("For strings, please specify the length of the column.");
+                const name = (column.alias === undefined || column.alias === '') ? key : column.alias;
+                if (value === null) {
+                    if (column.attribute === 'nullable') {
+                        continue;
+                    }
+                    this.throwValidationError("001", this.errorMessages.null.replace('{name}', name));
                 }
-                if (value.toString().length > column.length) {
-                    this.throwValidationError("003", this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
+                if (ValidateValueUtil_1.default.isErrorValue(column.type, value)) {
+                    this.throwValidationError("002", this.errorMessages[column.type].replace('{name}', name));
+                }
+                if (column.type === 'string') {
+                    if (column.length === undefined) {
+                        throw new Error("For strings, please specify the length of the column.");
+                    }
+                    if (value.toString().length > column.length) {
+                        this.throwValidationError("003", this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
+                    }
                 }
             }
-        }
+        });
     }
     validateInsert(options) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -347,7 +369,7 @@ class TableModel {
     }
     executeInsert(options) {
         return __awaiter(this, void 0, void 0, function* () {
-            this.validateOptions(options, true);
+            yield this.validateOptions(options, true);
             yield this.validateInsert(options);
             const columns = [];
             const vars = [];
@@ -365,7 +387,7 @@ class TableModel {
     }
     executeUpdate(options) {
         return __awaiter(this, void 0, void 0, function* () {
-            this.validateOptions(options, false);
+            yield this.validateOptions(options, false);
             yield this.validateUpdate(options);
             const updateExpressions = [];
             for (const [key, value] of Object.entries(options)) {
@@ -397,7 +419,7 @@ class TableModel {
     executeUpdateId(id, options) {
         return __awaiter(this, void 0, void 0, function* () {
             ValidateValueUtil_1.default.validateId(this.Columns, id);
-            this.validateOptions(options, false);
+            yield this.validateOptions(options, false);
             yield this.validateUpdateId(id, options);
             yield this.validateUpdate(options);
             const updateExpressions = [];

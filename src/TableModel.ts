@@ -1,5 +1,5 @@
 import { PoolClient } from 'pg';
-import { TAggregateFuncType, TColumn, TColumnAttribute, TColumnInfo, TColumnType, TNestedCondition, TOperator, TQuery, TSelectExpression, TSortKeyword, TSqlValue } from "./Type";
+import { TAggregateFuncType, TColumn, TColumnAttribute, TColumnInfo, TColumnType, TKeyFormat, TNestedCondition, TOperator, TQuery, TSelectExpression, TSortKeyword, TSqlValue } from "./Type";
 import ValidateValueUtil from './SqlUtils/ValidateValueUtil';
 import SelectExpression from './SqlUtils/SelectExpression';
 import WhereExpression from './SqlUtils/WhereExpression';
@@ -116,17 +116,21 @@ export class TableModel {
         }
     }
 
-    public async findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null = "*", selectExpressions: Array<TSelectExpression> | null = null): Promise<T | null> {
+    public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null, selectExpressions: Array<TSelectExpression> | null, keyFormat: TKeyFormat): Promise<T | null>;
+    public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null, selectExpressions: Array<TSelectExpression> | null): Promise<T | null>;
+    public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null): Promise<T | null>;
+    public findId<T = {[key: string]: any}>(id: any): Promise<T | null>;
+    public async findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null = "*", selectExpressions: Array<TSelectExpression> | null = null, keyFormat: TKeyFormat = 'snake'): Promise<T | null> {
         ValidateValueUtil.validateId(this.Columns, id);
 
         let selects: Array<string> = [];
         if (selectColumns == "*") {
             for (const key of Object.keys(this.Columns)) {
-                selects.push(SelectExpression.create({model: this, name: key}));
+                selects.push(SelectExpression.create({model: this, name: key}, null, null, keyFormat));
             }
         } else if (selectColumns != null) {
             for (const key of selectColumns) {
-                selects.push(SelectExpression.create({model: this, name: key}));
+                selects.push(SelectExpression.create({model: this, name: key}, null, null, keyFormat));
             }
         }
 
@@ -145,23 +149,45 @@ export class TableModel {
     public select(): void;
     public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*'): void;
     public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*', model: TableModel): void;
+    public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*', keyFormat: TKeyFormat): void;
+    public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*', model: TableModel, keyFormat: TKeyFormat): void;
     public select(expression: string, alias: string): void;
-    public select(param1: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | "*" | string = "*", param2?: TableModel | string) {
+    public select(param1: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | "*" | string = "*", param2?: TableModel | string | TKeyFormat, param3?: TKeyFormat) {
         if (param1 === "*") {
-            const model = param2 instanceof TableModel ? param2 : this;
+            let model: TableModel = this;
+            let keyFormat: TKeyFormat = 'snake';
+            if (param2 instanceof TableModel) {
+                model = param2;
+                if (param3 === 'snake' || param3 === 'lowerCamel') {
+                    keyFormat = param3;
+                }
+            } else if (param2 === 'snake' || param2 === 'lowerCamel') {
+                keyFormat = param2;
+            }
+
             for (const key of Object.keys(model.Columns)) {
-                this.selectExpressions.push(SelectExpression.create({model: model, name: key}));
+                this.selectExpressions.push(SelectExpression.create({model: model, name: key}, null, null, keyFormat));
             }
             return;
         }
 
         if (Array.isArray(param1)) {
-            const model = param2 instanceof TableModel ? param2 : this;
+            let model: TableModel = this;
+            let keyFormat: TKeyFormat = 'snake';
+            if (param2 instanceof TableModel) {
+                model = param2;
+                if (param3 === 'snake' || param3 === 'lowerCamel') {
+                    keyFormat = param3;
+                }
+            } else if (param2 === 'snake' || param2 === 'lowerCamel') {
+                keyFormat = param2;
+            }
+
             for (const key of param1) {
                 if (typeof key === 'string') {
-                    this.selectExpressions.push(SelectExpression.create({model: model, name: key}));
+                    this.selectExpressions.push(SelectExpression.create({model: model, name: key}, null, null, keyFormat));
                 } else {
-                    this.selectExpressions.push(SelectExpression.create({model: model, name: key.name}, key.func ?? null, key.alias ?? ''));
+                    this.selectExpressions.push(SelectExpression.create({model: model, name: key.name}, key.func ?? null, key.alias ?? null, keyFormat));
                 }
             }
             return;
@@ -330,7 +356,7 @@ export class TableModel {
         throw new Error(message);
     }
 
-    protected validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean): void {
+    protected async validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean): Promise<void> {
         if (Object.keys(options).length === 0) {
             throw new Error('At least one key-value pair is required in options.');
         }
@@ -384,7 +410,7 @@ export class TableModel {
     protected async validateDeleteId(id: any) : Promise<void> { }
 
     public async executeInsert(options: {[key: string]: TSqlValue}) : Promise<void> {
-        this.validateOptions(options, true);
+        await this.validateOptions(options, true);
         await this.validateInsert(options);
 
         const columns: Array<string> = [];
@@ -405,7 +431,7 @@ export class TableModel {
     }
 
     public async executeUpdate(options: {[key: string]: TSqlValue}) : Promise<number> {
-        this.validateOptions(options, false);
+        await this.validateOptions(options, false);
         await this.validateUpdate(options);
 
         const updateExpressions: Array<string> = [];
@@ -442,7 +468,7 @@ export class TableModel {
 
     public async executeUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<boolean> {
         ValidateValueUtil.validateId(this.Columns, id);
-        this.validateOptions(options, false);
+        await this.validateOptions(options, false);
         await this.validateUpdateId(id, options);
         await this.validateUpdate(options);
 

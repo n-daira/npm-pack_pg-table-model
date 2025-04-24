@@ -1,5 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const StringUtil_1 = __importDefault(require("../Utils/StringUtil"));
 class SelectExpression {
     /**
      * 指定されたカラム情報と関数を使用して、SQLのSELECT文を作成します。
@@ -7,7 +11,7 @@ class SelectExpression {
      * @param func カラムに適用する関数名。nullの場合は関数を適用しません。
      * @returns SQLのSELECT文の文字列。
      */
-    static create(columnInfo, func = null, alias = '') {
+    static create(columnInfo, func = null, alias = null, keyFormat = 'snake') {
         const column = columnInfo.model.getColumn(columnInfo.name);
         let select = '';
         switch (column.type) {
@@ -24,9 +28,12 @@ class SelectExpression {
                 select = column.expression;
                 break;
         }
-        let aliasName = alias.trim() !== '' ? alias : columnInfo.name;
+        let aliasName = alias !== null && alias !== void 0 ? alias : '';
         if (func !== null) {
-            aliasName = alias.trim() !== '' ? alias : func + '_' + columnInfo.name;
+            if (aliasName.trim() === '') {
+                const snakeAlias = func + '_' + columnInfo.name;
+                aliasName = keyFormat === 'snake' ? snakeAlias : StringUtil_1.default.formatFromSnakeToCamel(snakeAlias);
+            }
             select = `${func}(${select})`;
             switch (func) {
                 case 'sum':
@@ -40,6 +47,9 @@ class SelectExpression {
                 default:
                     break;
             }
+        }
+        if (aliasName.trim() === '') {
+            aliasName = keyFormat === 'snake' ? columnInfo.name : StringUtil_1.default.formatFromSnakeToCamel(columnInfo.name);
         }
         return `${select} as "${aliasName}"`;
     }

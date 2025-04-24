@@ -16,3 +16,4 @@ export type TCondition = string | {
 };
 export type TNestedCondition = TCondition | ['AND' | 'OR', ...TNestedCondition[]] | TNestedCondition[];
 export type TSortKeyword = 'desc' | 'asc';
+export type TKeyFormat = 'snake' | 'lowerCamel';

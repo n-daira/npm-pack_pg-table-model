@@ -17,6 +17,7 @@ declare module 'pg-table-model' {
     };
     export type TNestedCondition = TCondition | ['AND' | 'OR', ...TNestedCondition[]] | TNestedCondition[];
     export type TSortKeyword = 'desc' | 'asc';
+    export type TKeyFormat = 'snake' | 'lowerCamel';
 
     export class TableModel {
         protected readonly dbName: string;
@@ -45,6 +46,13 @@ declare module 'pg-table-model' {
         public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*', model: TableModel): void;
         public select(expression: string, alias: string): void;
 
+        public select(): void;
+        public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*'): void;
+        public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*', model: TableModel): void;
+        public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*', keyFormat: TKeyFormat): void;
+        public select(columls: Array<string | {name: string, alias?: string, func?: TAggregateFuncType}> | '*', model: TableModel, keyFormat: TKeyFormat): void;
+        public select(expression: string, alias: string): void;
+
         public join(joinType: 'left' | 'inner', joinModel: TableModel, conditions: Array<TNestedCondition>): void;
 
         public where(expression: string): void;
@@ -52,13 +60,14 @@ declare module 'pg-table-model' {
         public where(left: string, operator: TOperator, right: TSqlValue | Array<TSqlValue> | TColumnInfo | null): void;
         public where(left: TColumnInfo, operator: TOperator, right: TSqlValue | Array<TSqlValue> | TColumnInfo | null): void;
 
+        public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null, selectExpressions: Array<TSelectExpression> | null, keyFormat: TKeyFormat): Promise<T | null>;
         public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null, selectExpressions: Array<TSelectExpression> | null): Promise<T | null>;
         public findId<T = {[key: string]: any}>(id: any, selectColumns: Array<string> | "*" | null): Promise<T | null>;
         public findId<T = {[key: string]: any}>(id: any): Promise<T | null>;
 
         protected readonly errorMessages: Record<TColumnType | 'length' | 'null' | 'notInput', string>
         protected throwValidationError(code: string, message: string): never;
-        protected validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean) : void;
+        protected validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean) : Promise<void>;
         protected validateInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
         protected validateUpdate(options: {[key: string]: TSqlValue}) : Promise<void>;
         protected validateUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<void>;
@@ -73,6 +82,9 @@ declare module 'pg-table-model' {
 
         public executeSelect<T = {[key: string]: any}>(): Promise<Array<T>>;
         public executeSelectWithCount<T = any>(): Promise<{ datas: Array<T>, count: number, lastPage: number}>;
+
+        protected executeQuery(param1: string, vars?: Array<any>) : Promise<any>;
+        protected executeQuery(param1: TQuery) : Promise<any>;
 
         public orderBy(column: string | TColumnInfo, sortKeyword: TSortKeyword): void;
         public orderByList(column: string | TColumnInfo, list: Array<string | number | boolean | null>, sortKeyword: TSortKeyword): void;

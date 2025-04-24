@@ -1,5 +1,6 @@
 import { TableModel } from "../TableModel";
-import { TAggregateFuncType, TColumnInfo } from "../Type";
+import { TAggregateFuncType, TColumnInfo, TKeyFormat } from "../Type";
+import StringUtil from "../Utils/StringUtil";
 
 export default class SelectExpression {
 
@@ -9,7 +10,7 @@ export default class SelectExpression {
      * @param func カラムに適用する関数名。nullの場合は関数を適用しません。
      * @returns SQLのSELECT文の文字列。
      */
-    static create(columnInfo: TColumnInfo, func: TAggregateFuncType | null = null, alias: string = '') : string {
+    static create(columnInfo: TColumnInfo, func: TAggregateFuncType | null = null, alias: string | null = null, keyFormat: TKeyFormat = 'snake') : string {
 
         const column = columnInfo.model.getColumn(columnInfo.name);
         let select = ''
@@ -28,9 +29,12 @@ export default class SelectExpression {
                 break;
         }
 
-        let aliasName = alias.trim() !== '' ? alias : columnInfo.name;
+        let aliasName = alias ?? '';
         if (func !== null) {
-            aliasName = alias.trim() !== '' ? alias : func + '_' + columnInfo.name;
+            if (aliasName.trim() === '') {
+                const snakeAlias = func + '_' + columnInfo.name;
+                aliasName = keyFormat === 'snake' ? snakeAlias : StringUtil.formatFromSnakeToCamel(snakeAlias);
+            }
             select = `${func}(${select})`;
             switch (func) {
                 case 'sum':
@@ -44,6 +48,10 @@ export default class SelectExpression {
                 default:
                     break;
             }
+        }
+
+        if (aliasName.trim() === '') {
+            aliasName = keyFormat === 'snake' ? columnInfo.name : StringUtil.formatFromSnakeToCamel(columnInfo.name);
         }
 
         return `${select} as "${aliasName}"`;
