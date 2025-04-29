@@ -28,6 +28,11 @@ export const migrate = async (migrates: Array<MigrateTable>, pool: Pool): Promis
         let maxNumber = datas.maxNumber;
         for (const migrate of migrates) {
             const className = migrate.constructor.name;
+            if (datas.datas.filter(data => data.script_file === className).length > 0) {
+                console.log(`Already executed: ${className}`);
+                continue;
+            }
+
             await client.query(migrate.MigrateSql);
 
             const grantSql = migrate.AddGrantSql;
@@ -109,7 +114,7 @@ const isExistMigrationTable = async (pool: Pool) => {
 }
 
 const getMigrations = async (pool: Pool): Promise<{datas: Array<{migration_number: number, script_file: string, rollback_script: string}>, maxNumber: number}> => {
-    const datas = await pool.query("SELECT * FROM migrations;");
+    const datas = await pool.query("SELECT * FROM migrations ORDER BY migration_number DESC;");
     return {
         maxNumber: datas.rows.reduce((max, data) => data.migration_number > max ? data.migration_number : max, 0),
         datas: datas.rows

@@ -35,6 +35,10 @@ const migrate = (migrates, pool) => __awaiter(void 0, void 0, void 0, function* 
         let maxNumber = datas.maxNumber;
         for (const migrate of migrates) {
             const className = migrate.constructor.name;
+            if (datas.datas.filter(data => data.script_file === className).length > 0) {
+                console.log(`Already executed: ${className}`);
+                continue;
+            }
             yield client.query(migrate.MigrateSql);
             const grantSql = migrate.AddGrantSql;
             if (grantSql !== null) {
@@ -109,7 +113,7 @@ const isExistMigrationTable = (pool) => __awaiter(void 0, void 0, void 0, functi
     return res.rows[0].exists;
 });
 const getMigrations = (pool) => __awaiter(void 0, void 0, void 0, function* () {
-    const datas = yield pool.query("SELECT * FROM migrations;");
+    const datas = yield pool.query("SELECT * FROM migrations ORDER BY migration_number DESC;");
     return {
         maxNumber: datas.rows.reduce((max, data) => data.migration_number > max ? data.migration_number : max, 0),
         datas: datas.rows

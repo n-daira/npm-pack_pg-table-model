@@ -46,7 +46,7 @@ class TableModel {
         for (const join of this.joinConditions) {
             sql += join.type === 'left' ? ' LEFT OUTER JOIN' : ' INNER JOIN';
             sql += ` ${join.model.TableName} as "${join.model.TableAlias}" ON `;
-            const query = WhereExpression_1.default.createCondition(join.conditions, this, this.vars.length);
+            const query = WhereExpression_1.default.createCondition(join.conditions, this, this.vars.length + 1);
             sql += query.sql;
             if (query.vars !== undefined) {
                 this.vars = [...this.vars, ...query.vars];
@@ -132,6 +132,42 @@ class TableModel {
             }
             const sql = `SELECT ${selects.join(',')} FROM ${this.TableName} WHERE id = $1`;
             let datas = yield this.executeQuery(sql, [id]);
+            return datas.rowCount == 0 ? null : datas.rows[0];
+        });
+    }
+    find(pk_1) {
+        return __awaiter(this, arguments, void 0, function* (pk, selectColumns = "*", selectExpressions = null, keyFormat = 'snake') {
+            let selects = [];
+            if (selectColumns == "*") {
+                for (const key of Object.keys(this.Columns)) {
+                    selects.push(SelectExpression_1.default.create({ model: this, name: key }, null, null, keyFormat));
+                }
+            }
+            else if (selectColumns != null) {
+                for (const key of selectColumns) {
+                    selects.push(SelectExpression_1.default.create({ model: this, name: key }, null, null, keyFormat));
+                }
+            }
+            if (selectExpressions != null) {
+                for (const expression of selectExpressions) {
+                    selects.push(`${expression.expression} as "${expression.alias}"`);
+                }
+            }
+            const conditions = [];
+            const vars = [];
+            for (const [keyColumn, column] of Object.entries(this.Columns)) {
+                if (column.attribute !== 'primary') {
+                    continue;
+                }
+                if (pk[keyColumn] === undefined || pk[keyColumn] === null) {
+                    throw new Error(`No value is set for the primary key "${this.TableName}".${keyColumn}. Please set it in the first argument.`);
+                }
+                ValidateValueUtil_1.default.validateValue(column, pk[keyColumn]);
+                vars.push(pk[keyColumn]);
+                conditions.push(`${keyColumn} = $${vars.length}`);
+            }
+            const sql = `SELECT ${selects.join(',')} FROM ${this.TableName} WHERE ${conditions.join(' AND ')}`;
+            let datas = yield this.executeQuery(sql, vars);
             return datas.rowCount == 0 ? null : datas.rows[0];
         });
     }
