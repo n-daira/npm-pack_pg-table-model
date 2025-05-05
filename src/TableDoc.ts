@@ -220,7 +220,7 @@ td:nth-child(11) {
         <div class="table-wrapper">
             <div class="table-title-wrapper">
                 <div class="table-title-left">${model.TableName} ${model.TableDescription !== '' ? ` : ${model.TableDescription}` : ''}</div>
-                <button class="table-title-right" onclick="${createFuncName}()">Create文コピー</button>
+                <button class="table-title-right" onclick="${createFuncName}()">Copy Create Query</button>
             </div>
             <div class="comment-wrapper">${model.Comment.replace('\n', '<br>')}</div>
 
@@ -262,8 +262,8 @@ td:nth-child(11) {
                     <td>${(column.comment ?? '').replace('\n', '<br>')}</td>
                     <td>
                         ${column.attribute === "primary" ? `` : `
-                        <button onclick="${addFuncName}()">add column</button>
-                        <button onclick="${dropFuncName}()">drop column</button>
+                        <button onclick="${addFuncName}()">Copy add column</button>
+                        <button onclick="${dropFuncName}()">Copy drop column</button>
                         `}
                     </td>
                 </tr>`;
