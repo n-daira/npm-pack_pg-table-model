@@ -384,7 +384,7 @@ export class TableModel {
         return { datas: data.rows as Array<T>, count: Number(countData.rows[0].count), lastPage: Math.ceil(Number(countData.rows[0].count) / this.PageCount)};
     }
 
-    protected readonly errorMessages: Record<TColumnType | 'length' | 'null' | 'notInput', string> = {
+    protected readonly errorMessages: Record<TColumnType | 'length' | 'null' | 'notInput' | 'fk', string> = {
         'string': '{name} should be entered as a string or number type.',
         'uuid': '{name} should be entered as a UUID.',
         'number': '{name} should be entered as a number.',
@@ -394,7 +394,8 @@ export class TableModel {
         'timestamp': '{name} should be entered in "YYYY-MM-DD" format, "YYYY-MM-DD hh:mi:ss" format, "YYYY-MM-DDThh:mi:ss" format, or as a Date type.',
         'length': '{name} should be entered within {length} characters.',
         'null': '{name} is not allowed to be null.',
-        'notInput': 'Please enter {name}.'
+        'notInput': 'Please enter {name}.',
+        'fk': 'The value of {name} does not exist in "{table}".{column}.'
     }
     protected throwValidationError(code: string, message: string): never {
         throw new Error(message);
@@ -432,6 +433,19 @@ export class TableModel {
                     this.throwValidationError("003", this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
                 }
             }
+
+            // 外部キー制約チェック
+            if (column.fk !== undefined) {
+                const sql = `SELECT COUNT(*) as count FROM ${column.fk.table} WHERE ${column.fk.column} = $1`;
+                if (this.IsOutputLog) {
+                    console.log("SQL : Verify foreign key");
+                    console.log(sql);
+                }
+                const datas = await this.client.query(sql, [value]);
+                if (datas.rows[0].count === 0) {
+                    this.throwValidationError("004", this.errorMessages.fk.replace('{name}', name).replace('{table}', column.fk.table).replace('{column}', column.fk.column));
+                }
+            }
         }
     }
 
@@ -442,7 +456,7 @@ export class TableModel {
             if (options[key] === undefined || options[key] === null) {
                 // Null許容されていないカラムにNULLを入れようとしているか？
                 if (column.attribute === "primary" || column.attribute === "noDefault") {
-                    this.throwValidationError("004", this.errorMessages.notInput.replace('{name}', name));
+                    this.throwValidationError("101", this.errorMessages.notInput.replace('{name}', name));
                 }
             }
         }

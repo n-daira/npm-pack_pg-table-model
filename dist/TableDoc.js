@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTableDoc = void 0;
 const createTableDoc = (models) => {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d;
     let html = `
 <!DOCTYPE html>
 <html lang="ja">
@@ -14,6 +14,7 @@ const createTableDoc = (models) => {
 <style>
 :root {
     --primary: rgb(73, 204, 144);
+    --primary-dark: rgb(64, 169, 121);
     --bg-primary: rgba(73, 204, 144, 0.15);
     --border-primary: rgba(73, 204, 144, 0.3);
     --border-gray: rgb(200, 200, 200);
@@ -25,6 +26,22 @@ body {
     padding-right: 12px;
     margin: 0px;
     color: rgb(30, 35, 40);
+}
+
+
+button {
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: var(--primary);
+    border: 0px;
+    color: #ffffff;
+    border-radius: 999px;
+}
+
+button:hover {
+    background-color: var(--primary-dark);
 }
 
 /* title*/
@@ -53,12 +70,6 @@ h2 {
 
 /* table-title*/
 h3 {
-    background-color: var(--bg-primary);
-    border-top: var(--border-primary) solid 1px;
-    margin: 0;
-    padding-left: 4px;
-    padding-top: 2px;
-    padding-bottom: 2px;
     font-size: 18px;
     font-weight: bold;
 }
@@ -66,6 +77,28 @@ h3 {
 .table-wrapper {
     padding: 0px;
     margin-bottom: 16px;
+}
+
+.table-title-wrapper {
+    background-color: var(--bg-primary);
+    border-top: var(--border-primary) solid 1px;
+    margin: 0;
+    padding: 2px 4px;
+    align-items: center;
+    display: flex;
+}
+
+.table-title-left {
+    font-size: 18px;
+    font-weight: bold;
+    text-align: left;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.table-title-right {
+    margin-left: auto;
+    padding: 2px;
 }
 
 .comment-wrapper {
@@ -157,6 +190,11 @@ td:nth-child(9) {
 td:nth-child(10) {
     width: auto;
 }
+
+/* function */
+td:nth-child(11) {
+    width: auto;
+}
 </style>
 
 <body>
@@ -169,15 +207,20 @@ td:nth-child(10) {
         }
         dbObj[model.DbName].push(model);
     }
+    const jsCripFuncs = {};
     for (const [keyDbName, models] of Object.entries(dbObj)) {
         html += `
     <div class="db-wrapper">
         <h2>${keyDbName} Database</h2>`;
         for (const model of models) {
+            const createFuncName = `clipboard_createTable_${model.DbName}_${model.TableName}`;
             html += `
         <div class="table-wrapper">
-            <h3>${model.TableName} ${model.TableDescription !== '' ? ` : ${model.TableDescription}` : ''}</h3>
-            <div class="comment-wrapper">${model.Comment}</div>
+            <div class="table-title-wrapper">
+                <div class="table-title-left">${model.TableName} ${model.TableDescription !== '' ? ` : ${model.TableDescription}` : ''}</div>
+                <button class="table-title-right" onclick="${createFuncName}()">Create文コピー</button>
+            </div>
+            <div class="comment-wrapper">${model.Comment.replace('\n', '<br>')}</div>
 
             <table>
                 <tr>
@@ -191,10 +234,16 @@ td:nth-child(10) {
                     <th>default</th>
                     <th>foreign key</th>
                     <th>comment</th>
+                    <th>function</th>
                 </tr>`;
+            const createColExpressions = [];
+            const pkColNames = [];
+            const refColExpressions = [];
             let index = 0;
             for (const [keyColName, column] of Object.entries(model.Columns)) {
                 index++;
+                const addFuncName = `clipboard_addColumn_${model.DbName}_${model.TableName}_${keyColName}`;
+                const dropFuncName = `clipboard_dropColumn_${model.DbName}_${model.TableName}_${keyColName}`;
                 html += `
                 <tr>
                     <td>${index}</td>
@@ -205,10 +254,33 @@ td:nth-child(10) {
                     <td>${(_b = column.length) !== null && _b !== void 0 ? _b : ''}</td>
                     <td>${column.attribute === 'nullable' ? 'nullable' : ''}</td>
                     <td>${column.attribute === 'hasDefault' ? (_c = column.default) !== null && _c !== void 0 ? _c : '???' : ''}</td>
-                    <td>${(_d = column.fk) !== null && _d !== void 0 ? _d : ''}</td>
-                    <td>${(_e = column.comment) !== null && _e !== void 0 ? _e : ''}</td>
+                    <td>${column.fk === undefined ? '' : `[${column.fk.table}].[${column.fk.column}]`}</td>
+                    <td>${((_d = column.comment) !== null && _d !== void 0 ? _d : '').replace('\n', '<br>')}</td>
+                    <td>
+                        ${column.attribute === "primary" ? `` : `
+                        <button onclick="${addFuncName}()">add column</button>
+                        <button onclick="${dropFuncName}()">drop column</button>
+                        `}
+                    </td>
                 </tr>`;
+                jsCripFuncs[addFuncName] = `ALTER TABLE ${model.TableName} ADD COLUMN ${keyColName} ${toColumnType(column)} ${toColumnAttibute(column)};`;
+                jsCripFuncs[dropFuncName] = `ALTER TABLE ${model.TableName} DROP COLUMN ${keyColName};`;
+                // CreateTable作成用
+                createColExpressions.push(`${keyColName} ${toColumnType(column)} ${toColumnAttibute(column)}`);
+                if (column.attribute === 'primary') {
+                    pkColNames.push(keyColName);
+                }
+                if (column.fk !== undefined) {
+                    refColExpressions.push(`FOREIGN KEY (${keyColName}) REFERENCES ${column.fk.table}(${column.fk.column})`);
+                }
             }
+            // CreateTable作成文
+            let expressions = [...createColExpressions];
+            if (pkColNames.length > 0) {
+                expressions.push(`PRIMARY KEY (${pkColNames.join(', ')})`);
+            }
+            expressions = [...expressions, ...refColExpressions];
+            jsCripFuncs[createFuncName] = `CREATE TABLE ${model.TableName} (\n    ${expressions.join(',\n    ')}\n);`;
             html += `
             </table>
         </div>`;
@@ -216,10 +288,53 @@ td:nth-child(10) {
         html += `
     </div>`;
     }
-    html += `
+    html += `\n    <script>\n`;
+    for (const [keyFunName, value] of Object.entries(jsCripFuncs)) {
+        html += `
+        function ${keyFunName}() {
+            const el = document.createElement('textarea');
+            el.value = \`${value}\`;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            alert('コピーしました');
+        }\n`;
+    }
+    html += `    </script>
 </body>
 </html>
 `;
     return html;
 };
 exports.createTableDoc = createTableDoc;
+function toColumnType(column) {
+    switch (column.type) {
+        case 'uuid':
+            return 'UUID';
+        case 'bool':
+            return 'BOOLEAN';
+        case 'date':
+            return 'DATE';
+        case 'number':
+            return 'INTEGER';
+        case 'string':
+            return 'VARCHAR(' + column.length + ')';
+        case 'time':
+            return 'TIME';
+        case 'timestamp':
+            return 'TIMESTAMP';
+    }
+}
+function toColumnAttibute(column) {
+    switch (column.attribute) {
+        case 'hasDefault':
+            return 'NOT NULL DEFAULT ' + column.default;
+        case 'noDefault':
+            return 'NOT NULL';
+        case 'nullable':
+            return 'NULL';
+        case 'primary':
+            return ''; // 主キーは後で設定するので
+    }
+}

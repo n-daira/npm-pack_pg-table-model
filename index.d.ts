@@ -2,7 +2,7 @@ import { Pool, PoolClient } from 'pg';
 
 declare module 'pg-table-model' {
     export type TSqlValue = string | number | boolean | Date | null;
-    export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, fk?: string, comment?: string};
+    export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, fk?: {table: string, column: string}, comment?: string};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
     export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
     export type TOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" | "h2f_like" | "h2f_ilike" | "in" | "not in";
