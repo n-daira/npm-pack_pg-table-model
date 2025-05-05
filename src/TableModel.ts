@@ -38,6 +38,19 @@ export class TableModel {
             expression: `"${this.TableAlias}".${key}`
         };
     }
+    protected readonly references: Array<{table: string, columns: Array<{target: string, ref: string}>}> = [];
+    get References(): Array<{table: string, columns: Array<{target: string, ref: string}>}> { return this.references; }
+    public GetReferences(columnName: string): Array<{table: string, columns: Array<{target: string, ref: string}>}> {
+        const _ = this.getColumn(columnName); // 存在チェック用
+        const references: Array<{table: string, columns: Array<{target: string, ref: string}>}> = [];
+        for (const ref of this.References) {
+            if (ref.columns.filter(col => col.target === columnName).length > 0) {
+                references.push(ref);
+            }
+        }
+
+        return references;
+    }
 
     protected readonly tableAlias?: string;
     get TableAlias(): string {
@@ -433,17 +446,22 @@ export class TableModel {
                     this.throwValidationError("003", this.errorMessages.length.replace('{name}', name).replace('{length}', column.length.toString()));
                 }
             }
+        }
 
-            // 外部キー制約チェック
-            if (column.fk !== undefined) {
-                const sql = `SELECT COUNT(*) as count FROM ${column.fk.table} WHERE ${column.fk.column} = $1`;
+        // 外部キー制約チェック
+        if (isInsert) {
+            for (const ref of this.References) {
+                let refIndex = 1;
+                const sql = `SELECT COUNT(*) as count FROM ${ref.table} WHERE ${ref.columns.map(col => `${col.ref} = $${refIndex++}`)}`;
                 if (this.IsOutputLog) {
                     console.log("SQL : Verify foreign key");
                     console.log(sql);
                 }
-                const datas = await this.client.query(sql, [value]);
+                const datas = await this.client.query(sql, ref.columns.map(col => options[col.target]));
                 if (datas.rows[0].count === 0) {
-                    this.throwValidationError("004", this.errorMessages.fk.replace('{name}', name).replace('{table}', column.fk.table).replace('{column}', column.fk.column));
+                    this.throwValidationError("004", this.errorMessages.fk.replace(
+                        '{name}', 
+                        ref.columns.map(col => this.getColumn(col.target)).join(',')).replace('{table}', ref.table).replace('{column}', ref.columns.map(col => col.ref).join(',')));
                 }
             }
         }

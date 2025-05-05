@@ -2,7 +2,7 @@ import { Pool, PoolClient } from 'pg';
 
 declare module 'pg-table-model' {
     export type TSqlValue = string | number | boolean | Date | null;
-    export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, fk?: {table: string, column: string}, comment?: string};
+    export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, comment?: string};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
     export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
     export type TOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" | "h2f_like" | "h2f_ilike" | "in" | "not in";
@@ -30,6 +30,9 @@ declare module 'pg-table-model' {
         get Comment(): string;
         protected readonly columns: { [key: string]: TColumn };
         get Columns(): { [key: string]: TColumn };
+        protected readonly references: Array<{table: string, columns: Array<{target: string, ref: string}>}>;
+        get References(): Array<{table: string, columns: Array<{target: string, ref: string}>}>;
+        public GetReferences(columnName: string): Array<{table: string, columns: Array<{target: string, ref: string}>}>;
         get TableAlias(): string;
         public IsOutputLog: boolean;
         public SortKeyword: TSortKeyword;

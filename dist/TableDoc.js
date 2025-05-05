@@ -218,7 +218,7 @@ td:nth-child(11) {
         <div class="table-wrapper">
             <div class="table-title-wrapper">
                 <div class="table-title-left">${model.TableName} ${model.TableDescription !== '' ? ` : ${model.TableDescription}` : ''}</div>
-                <button class="table-title-right" onclick="${createFuncName}()">Create文コピー</button>
+                <button class="table-title-right" onclick="${createFuncName}()">Copy Create Query</button>
             </div>
             <div class="comment-wrapper">${model.Comment.replace('\n', '<br>')}</div>
 
@@ -238,12 +238,20 @@ td:nth-child(11) {
                 </tr>`;
             const createColExpressions = [];
             const pkColNames = [];
-            const refColExpressions = [];
             let index = 0;
             for (const [keyColName, column] of Object.entries(model.Columns)) {
                 index++;
                 const addFuncName = `clipboard_addColumn_${model.DbName}_${model.TableName}_${keyColName}`;
                 const dropFuncName = `clipboard_dropColumn_${model.DbName}_${model.TableName}_${keyColName}`;
+                // 外部キー用
+                let references = [];
+                for (const ref of model.GetReferences(keyColName)) {
+                    const targetRef = ref.columns.filter(col => col.target === keyColName);
+                    if (targetRef.length > 0) {
+                        references.push(`[${ref.table}].[${targetRef[0].target}]`);
+                    }
+                }
+                references = Array.from(new Set(references)); // 重複を除く
                 html += `
                 <tr>
                     <td>${index}</td>
@@ -254,12 +262,12 @@ td:nth-child(11) {
                     <td>${(_b = column.length) !== null && _b !== void 0 ? _b : ''}</td>
                     <td>${column.attribute === 'nullable' ? 'nullable' : ''}</td>
                     <td>${column.attribute === 'hasDefault' ? (_c = column.default) !== null && _c !== void 0 ? _c : '???' : ''}</td>
-                    <td>${column.fk === undefined ? '' : `[${column.fk.table}].[${column.fk.column}]`}</td>
+                    <td>${references.length === 0 ? '' : references.join('<br>')}</td>
                     <td>${((_d = column.comment) !== null && _d !== void 0 ? _d : '').replace('\n', '<br>')}</td>
                     <td>
                         ${column.attribute === "primary" ? `` : `
-                        <button onclick="${addFuncName}()">add column</button>
-                        <button onclick="${dropFuncName}()">drop column</button>
+                        <button onclick="${addFuncName}()">Copy add column</button>
+                        <button onclick="${dropFuncName}()">Copy drop column</button>
                         `}
                     </td>
                 </tr>`;
@@ -270,16 +278,15 @@ td:nth-child(11) {
                 if (column.attribute === 'primary') {
                     pkColNames.push(keyColName);
                 }
-                if (column.fk !== undefined) {
-                    refColExpressions.push(`FOREIGN KEY (${keyColName}) REFERENCES ${column.fk.table}(${column.fk.column})`);
-                }
             }
             // CreateTable作成文
-            let expressions = [...createColExpressions];
+            const expressions = [...createColExpressions];
             if (pkColNames.length > 0) {
                 expressions.push(`PRIMARY KEY (${pkColNames.join(', ')})`);
             }
-            expressions = [...expressions, ...refColExpressions];
+            for (const ref of model.References) {
+                expressions.push(`FOREIGN KEY (${ref.columns.map(col => col.target).join(', ')}) REFERENCES ${ref.table}(${ref.columns.map(col => col.ref).join(', ')})`);
+            }
             jsCripFuncs[createFuncName] = `CREATE TABLE ${model.TableName} (\n    ${expressions.join(',\n    ')}\n);`;
             html += `
             </table>

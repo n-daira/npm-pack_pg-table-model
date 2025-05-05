@@ -241,12 +241,21 @@ td:nth-child(11) {
 
             const createColExpressions: Array<string> = [];
             const pkColNames: Array<string> = [];
-            const refColExpressions: Array<string> = [];
             let index = 0;
             for (const [keyColName, column] of Object.entries(model.Columns)) {
                 index++;
                 const addFuncName = `clipboard_addColumn_${model.DbName}_${model.TableName}_${keyColName}`;
                 const dropFuncName = `clipboard_dropColumn_${model.DbName}_${model.TableName}_${keyColName}`;
+
+                // 外部キー用
+                let references: Array<string> = [];
+                for (const ref of model.GetReferences(keyColName)) {
+                    const targetRef = ref.columns.filter(col => col.target === keyColName);
+                    if (targetRef.length > 0) {
+                        references.push(`[${ref.table}].[${targetRef[0].target}]`);
+                    }
+                }
+                references = Array.from(new Set(references)); // 重複を除く
 
                 html += `
                 <tr>
@@ -258,7 +267,7 @@ td:nth-child(11) {
                     <td>${column.length ?? ''}</td>
                     <td>${column.attribute === 'nullable' ? 'nullable' : ''}</td>
                     <td>${column.attribute === 'hasDefault' ? column.default ?? '???' : ''}</td>
-                    <td>${column.fk === undefined ? '' : `[${column.fk.table}].[${column.fk.column}]`}</td>
+                    <td>${references.length === 0 ? '' : references.join('<br>')}</td>
                     <td>${(column.comment ?? '').replace('\n', '<br>')}</td>
                     <td>
                         ${column.attribute === "primary" ? `` : `
@@ -267,7 +276,7 @@ td:nth-child(11) {
                         `}
                     </td>
                 </tr>`;
-
+                
                 jsCripFuncs[addFuncName] = `ALTER TABLE ${model.TableName} ADD COLUMN ${keyColName} ${toColumnType(column)} ${toColumnAttibute(column)};`;
                 jsCripFuncs[dropFuncName] = `ALTER TABLE ${model.TableName} DROP COLUMN ${keyColName};`;
 
@@ -276,17 +285,16 @@ td:nth-child(11) {
                 if (column.attribute === 'primary') {
                     pkColNames.push(keyColName);
                 }
-                if (column.fk !== undefined) {
-                    refColExpressions.push(`FOREIGN KEY (${keyColName}) REFERENCES ${column.fk.table}(${column.fk.column})`);
-                }
             }
 
             // CreateTable作成文
-            let expressions = [...createColExpressions];
+            const expressions = [...createColExpressions];
             if (pkColNames.length > 0) {
                 expressions.push(`PRIMARY KEY (${pkColNames.join(', ')})`);
             }
-            expressions = [...expressions, ...refColExpressions];
+            for (const ref of model.References) {
+                expressions.push(`FOREIGN KEY (${ref.columns.map(col => col.target).join(', ')}) REFERENCES ${ref.table}(${ref.columns.map(col => col.ref).join(', ')})`);   
+            }
             jsCripFuncs[createFuncName] = `CREATE TABLE ${model.TableName} (\n    ${expressions.join(',\n    ')}\n);`;
 
             html += `
@@ -317,7 +325,6 @@ td:nth-child(11) {
 `;
     return html;
 }
-
 
 function toColumnType(column: TColumn) {
     switch (column.type) {
