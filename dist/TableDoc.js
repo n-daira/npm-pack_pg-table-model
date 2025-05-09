@@ -246,7 +246,7 @@ td:nth-child(11) {
                 // 外部キー用
                 let references = [];
                 for (const ref of model.GetReferences(keyColName)) {
-                    const targetRef = ref.columns.filter(col => col.ref === keyColName);
+                    const targetRef = ref.columns.filter(col => col.target === keyColName);
                     if (targetRef.length > 0) {
                         references.push(`[${ref.table}].[${targetRef[0].ref}]`);
                     }

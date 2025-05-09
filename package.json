@@ -1,6 +1,6 @@
 {
   "name": "pg-table-model",
-  "version": "1.0.54",
+  "version": "1.0.55",
   "description": "",
   "main": "dist/index.js",
   "types": "index.d.ts",
