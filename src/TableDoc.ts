@@ -1,7 +1,7 @@
 import { TableModel } from "./TableModel";
 import { TColumn } from "./Type";
 
-export const createTableDoc = (models: Array<TableModel>) => {
+export const createTableDoc = (models: Array<TableModel>, serviceName?: string) => {
     let html = `
 <!DOCTYPE html>
 <html lang="ja">
@@ -197,7 +197,7 @@ td:nth-child(11) {
 </style>
 
 <body>
-    <h1>Your Table Definition Document</h1>
+    <h1>${serviceName === undefined ? '': serviceName + ' :'}Your Table Definition Document</h1>
 `;
 
     const dbObj: {[key: string]: Array<TableModel>} = {};
@@ -250,9 +250,9 @@ td:nth-child(11) {
                 // 外部キー用
                 let references: Array<string> = [];
                 for (const ref of model.GetReferences(keyColName)) {
-                    const targetRef = ref.columns.filter(col => col.target === keyColName);
+                    const targetRef = ref.columns.filter(col => col.ref === keyColName);
                     if (targetRef.length > 0) {
-                        references.push(`[${ref.table}].[${targetRef[0].target}]`);
+                        references.push(`[${ref.table}].[${targetRef[0].ref}]`);
                     }
                 }
                 references = Array.from(new Set(references)); // 重複を除く

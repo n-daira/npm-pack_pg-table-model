@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTableDoc = void 0;
-const createTableDoc = (models) => {
+const createTableDoc = (models, serviceName) => {
     var _a, _b, _c, _d;
     let html = `
 <!DOCTYPE html>
@@ -198,7 +198,7 @@ td:nth-child(11) {
 </style>
 
 <body>
-    <h1>Your Table Definition Document</h1>
+    <h1>${serviceName === undefined ? '' : serviceName + ' :'}Your Table Definition Document</h1>
 `;
     const dbObj = {};
     for (const model of models) {
@@ -246,9 +246,9 @@ td:nth-child(11) {
                 // 外部キー用
                 let references = [];
                 for (const ref of model.GetReferences(keyColName)) {
-                    const targetRef = ref.columns.filter(col => col.target === keyColName);
+                    const targetRef = ref.columns.filter(col => col.ref === keyColName);
                     if (targetRef.length > 0) {
-                        references.push(`[${ref.table}].[${targetRef[0].target}]`);
+                        references.push(`[${ref.table}].[${targetRef[0].ref}]`);
                     }
                 }
                 references = Array.from(new Set(references)); // 重複を除く

@@ -101,7 +101,7 @@ declare module 'pg-table-model' {
         public groupBy(column: string | TColumnInfo): void;
     }
 
-    export function createTableDoc(models: Array<TableModel>): string;
+    export function createTableDoc(models: Array<TableModel>, serviceName?: string): string;
     export function migrate(migrates: Array<MigrateTable>, pool: Pool): Promise<void>;
     export function migrate(migrates: Array<MigrateTable>, pool: Pool): Promise<void>;
     export function rollback(toNumber: number, pool: Pool): Promise<void>;
