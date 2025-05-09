@@ -408,7 +408,7 @@ export class TableModel {
         'length': '{name} should be entered within {length} characters.',
         'null': '{name} is not allowed to be null.',
         'notInput': 'Please enter {name}.',
-        'fk': 'The value of {name} does not exist in "{table}".{column}.'
+        'fk': 'The value of {name} does not exist in the table.'
     }
     protected throwValidationError(code: string, message: string): never {
         throw new Error(message);
@@ -453,15 +453,10 @@ export class TableModel {
             for (const ref of this.References) {
                 let refIndex = 1;
                 const sql = `SELECT COUNT(*) as count FROM ${ref.table} WHERE ${ref.columns.map(col => `${col.ref} = $${refIndex++}`)}`;
-                if (this.IsOutputLog) {
-                    console.log("SQL : Verify foreign key");
-                    console.log(sql);
-                }
-                const datas = await this.client.query(sql, ref.columns.map(col => options[col.target]));
-                if (datas.rows[0].count === 0) {
-                    this.throwValidationError("004", this.errorMessages.fk.replace(
-                        '{name}', 
-                        ref.columns.map(col => this.getColumn(col.target)).join(',')).replace('{table}', ref.table).replace('{column}', ref.columns.map(col => col.ref).join(',')));
+                const datas = await this.clientQuery(sql, ref.columns.map(col => options[col.target]));
+                if (datas.rows[0].count == "0") {
+                    const name = ref.columns.map(col => this.getColumn(col.target).alias ?? this.getColumn(col.target).columnName).join(',');
+                    this.throwValidationError("004", this.errorMessages.fk.replace('{name}', name));
                 }
             }
         }
@@ -630,6 +625,11 @@ export class TableModel {
             vars = param1.vars;
         }
 
+
+        return await this.clientQuery(sql, vars);
+    }
+
+    private async clientQuery(sql: string, vars?: Array<any>) {
         if (this.IsOutputLog) {
             console.log("--- Debug Sql ----------");
             console.log(sql);
@@ -637,7 +637,6 @@ export class TableModel {
         }
 
         const data = await this.client.query(sql, vars ?? []);
-
         if (this.IsOutputLog) {
             console.log("- 実行結果");
             if (data.rowCount == 0) {
@@ -661,7 +660,6 @@ export class TableModel {
                 }
             }
         }
-
 
         return data;
     }

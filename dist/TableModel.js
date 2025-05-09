@@ -117,7 +117,7 @@ class TableModel {
             'length': '{name} should be entered within {length} characters.',
             'null': '{name} is not allowed to be null.',
             'notInput': 'Please enter {name}.',
-            'fk': 'The value of {name} does not exist in "{table}".{column}.'
+            'fk': 'The value of {name} does not exist in the table.'
         };
         this.client = client;
         if (tableAlias !== undefined && tableAlias.trim() !== '') {
@@ -393,13 +393,10 @@ class TableModel {
                 for (const ref of this.References) {
                     let refIndex = 1;
                     const sql = `SELECT COUNT(*) as count FROM ${ref.table} WHERE ${ref.columns.map(col => `${col.ref} = $${refIndex++}`)}`;
-                    if (this.IsOutputLog) {
-                        console.log("SQL : Verify foreign key");
-                        console.log(sql);
-                    }
-                    const datas = yield this.client.query(sql, ref.columns.map(col => options[col.target]));
-                    if (datas.rows[0].count === 0) {
-                        this.throwValidationError("004", this.errorMessages.fk.replace('{name}', ref.columns.map(col => this.getColumn(col.target)).join(',')).replace('{table}', ref.table).replace('{column}', ref.columns.map(col => col.ref).join(',')));
+                    const datas = yield this.clientQuery(sql, ref.columns.map(col => options[col.target]));
+                    if (datas.rows[0].count == "0") {
+                        const name = ref.columns.map(col => { var _a; return (_a = this.getColumn(col.target).alias) !== null && _a !== void 0 ? _a : this.getColumn(col.target).columnName; }).join(',');
+                        this.throwValidationError("004", this.errorMessages.fk.replace('{name}', name));
                     }
                 }
             }
@@ -558,6 +555,11 @@ class TableModel {
                 sql = param1.sql;
                 vars = param1.vars;
             }
+            return yield this.clientQuery(sql, vars);
+        });
+    }
+    clientQuery(sql, vars) {
+        return __awaiter(this, void 0, void 0, function* () {
             if (this.IsOutputLog) {
                 console.log("--- Debug Sql ----------");
                 console.log(sql);
