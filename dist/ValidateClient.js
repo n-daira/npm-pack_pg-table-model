@@ -35,9 +35,12 @@ class ValidateClient {
         }
     }
     validateInList(option, key, list, error) {
-        var _a, _b, _c;
+        var _a, _b;
         const column = this.model.getColumn(key);
         const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
         if (list.includes(value) === false) {
             const code = (_a = error === null || error === void 0 ? void 0 : error.code) !== null && _a !== void 0 ? _a : "000";
             let message = error === null || error === void 0 ? void 0 : error.message;
@@ -45,17 +48,21 @@ class ValidateClient {
                 message = `{column} must be one of the items in the {list}. ({value})`;
             }
             message = message.replace('{column}', (_b = column.alias) !== null && _b !== void 0 ? _b : column.columnName);
-            message = message.replace('{value}', (_c = column.alias) !== null && _c !== void 0 ? _c : column.columnName);
+            message = message.replace('{value}', value.toString());
             message = message.replace('{list}', list.join(', '));
             this.model.throwValidationError(code, message);
         }
     }
-    validateOverNow(option, key, error) {
-        var _a, _b, _c;
+    validateUnderNow(option, key, error) {
+        var _a, _b;
         const column = this.model.getColumn(key);
-        const date = this.tryDate(option[key]);
+        const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
+        const date = this.tryDate(value);
         if (date === false) {
-            throw new Error("The value must be a Date or a valid date string  when using validateOverNow.");
+            throw new Error("The value must be a Date or a valid date string  when using validateUnderNow.");
         }
         const now = new Date();
         if (date > now) {
@@ -65,16 +72,20 @@ class ValidateClient {
                 message = `{column} should be entered on or before now. ({value})`;
             }
             message = message.replace('{column}', (_b = column.alias) !== null && _b !== void 0 ? _b : column.columnName);
-            message = message.replace('{value}', (_c = column.alias) !== null && _c !== void 0 ? _c : column.columnName);
+            message = message.replace('{value}', value.toString());
             this.model.throwValidationError(code, message);
         }
     }
-    validateOverToday(option, key, isErrorToday, error) {
-        var _a, _b, _c;
+    validateUnderToday(option, key, isErrorToday, error) {
+        var _a, _b;
         const column = this.model.getColumn(key);
-        const date = this.tryDate(option[key]);
+        const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
+        const date = this.tryDate(value);
         if (date === false) {
-            throw new Error("The value must be a Date or a valid date string when using vaildateOverToday.");
+            throw new Error("The value must be a Date or a valid date string when using validateUnderToday.");
         }
         date.setHours(0);
         date.setMinutes(0);
@@ -97,14 +108,17 @@ class ValidateClient {
                 }
             }
             message = message.replace('{column}', (_b = column.alias) !== null && _b !== void 0 ? _b : column.columnName);
-            message = message.replace('{value}', (_c = column.alias) !== null && _c !== void 0 ? _c : column.columnName);
+            message = message.replace('{value}', value.toString());
             this.model.throwValidationError(code, message);
         }
     }
-    validateStringRegExp(option, key, regExp, error) {
-        var _a, _b, _c;
+    validateRegExp(option, key, regExp, error) {
+        var _a, _b;
         const column = this.model.getColumn(key);
         const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
         if (typeof value !== 'string') {
             throw new Error("The value must be a string when using validateStringRegExp.");
         }
@@ -118,7 +132,31 @@ class ValidateClient {
                 message = `{column} is invalid. ({value})`;
             }
             message = message.replace('{column}', (_b = column.alias) !== null && _b !== void 0 ? _b : column.columnName);
-            message = message.replace('{value}', (_c = column.alias) !== null && _c !== void 0 ? _c : column.columnName);
+            message = message.replace('{value}', value.toString());
+            this.model.throwValidationError(code, message);
+        }
+    }
+    validatePositiveNumber(option, key, error) {
+        var _a, _b;
+        const column = this.model.getColumn(key);
+        const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
+        if (typeof value !== 'number' && typeof value !== 'string') {
+            throw new Error("The value must be a valid number string or number when using validatePositiveNumber.");
+        }
+        if (isNaN(Number(value))) {
+            throw new Error("The value must be a valid number string or number when using validatePositiveNumber.");
+        }
+        if (Number(value) <= 0) {
+            const code = (_a = error === null || error === void 0 ? void 0 : error.code) !== null && _a !== void 0 ? _a : "000";
+            let message = error === null || error === void 0 ? void 0 : error.message;
+            if (message === undefined) {
+                message = `Please enter a value greater than 0 for {column}. ({value})`;
+            }
+            message = message.replace('{column}', (_b = column.alias) !== null && _b !== void 0 ? _b : column.columnName);
+            message = message.replace('{value}', value.toString());
             this.model.throwValidationError(code, message);
         }
     }

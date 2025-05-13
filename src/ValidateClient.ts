@@ -45,6 +45,9 @@ export default class ValidateClient {
     public validateInList(option: TOption, key: string, list: Array<TSqlValue>, error?: TError) {
         const column = this.model.getColumn(key);
         const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
         
         if (list.includes(value) === false) {
             const code = error?.code ?? "000";
@@ -53,18 +56,22 @@ export default class ValidateClient {
                 message = `{column} must be one of the items in the {list}. ({value})`;
             }
             message = message.replace('{column}', column.alias ?? column.columnName);
-            message = message.replace('{value}', column.alias ?? column.columnName);
+            message = message.replace('{value}', value.toString());
             message = message.replace('{list}', list.join(', '));
             this.model.throwValidationError(code, message);
         }
     }
 
-    public validateOverNow(option: TOption, key: string, error?: TError) {
+    public validateUnderNow(option: TOption, key: string, error?: TError) {
         const column = this.model.getColumn(key);
+        const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
 
-        const date = this.tryDate(option[key]);
+        const date = this.tryDate(value);
         if (date === false) {
-            throw new Error("The value must be a Date or a valid date string  when using validateOverNow.");
+            throw new Error("The value must be a Date or a valid date string  when using validateUnderNow.");
         }
 
         const now = new Date();
@@ -75,17 +82,21 @@ export default class ValidateClient {
                 message = `{column} should be entered on or before now. ({value})`;
             }
             message = message.replace('{column}', column.alias ?? column.columnName);
-            message = message.replace('{value}', column.alias ?? column.columnName);
+            message = message.replace('{value}', value.toString());
             this.model.throwValidationError(code, message);
         }
     }
 
-    public validateOverToday(option: TOption, key: string, isErrorToday: boolean, error?: TError): void {
+    public validateUnderToday(option: TOption, key: string, isErrorToday: boolean, error?: TError): void {
         const column = this.model.getColumn(key);
+        const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
 
-        const date = this.tryDate(option[key]);
+        const date = this.tryDate(value);
         if (date === false) {
-            throw new Error("The value must be a Date or a valid date string when using vaildateOverToday.");
+            throw new Error("The value must be a Date or a valid date string when using validateUnderToday.");
         }
 
         date.setHours(0);
@@ -110,14 +121,18 @@ export default class ValidateClient {
                 }
             }
             message = message.replace('{column}', column.alias ?? column.columnName);
-            message = message.replace('{value}', column.alias ?? column.columnName);
+            message = message.replace('{value}', value.toString());
             this.model.throwValidationError(code, message);
         }
     }
 
-    public validateStringRegExp(option: TOption, key: string, regExp: RegExp | string, error?: TError): void {
+    public validateRegExp(option: TOption, key: string, regExp: RegExp | string, error?: TError): void {
         const column = this.model.getColumn(key);
         const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
+
         if (typeof value !== 'string') {
             throw new Error("The value must be a string when using validateStringRegExp.");
         }
@@ -133,7 +148,34 @@ export default class ValidateClient {
                 message = `{column} is invalid. ({value})`;
             }
             message = message.replace('{column}', column.alias ?? column.columnName);
-            message = message.replace('{value}', column.alias ?? column.columnName);
+            message = message.replace('{value}', value.toString());
+            this.model.throwValidationError(code, message);
+        }
+    }
+
+    public validatePositiveNumber(option: TOption, key: string, error?: TError) {
+        const column = this.model.getColumn(key);
+        const value = option[key];
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
+
+        if (typeof value !== 'number' && typeof value !== 'string') {
+            throw new Error("The value must be a valid number string or number when using validatePositiveNumber.");
+        }
+
+        if (isNaN(Number(value))) {
+            throw new Error("The value must be a valid number string or number when using validatePositiveNumber.");
+        }
+
+        if (Number(value) <= 0) {
+            const code = error?.code ?? "000";
+            let message = error?.message;
+            if (message === undefined) {
+                message = `Please enter a value greater than 0 for {column}. ({value})`;
+            }
+            message = message.replace('{column}', column.alias ?? column.columnName);
+            message = message.replace('{value}', value.toString());
             this.model.throwValidationError(code, message);
         }
     }
