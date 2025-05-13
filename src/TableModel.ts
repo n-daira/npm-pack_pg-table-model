@@ -1,8 +1,9 @@
-import { PoolClient } from 'pg';
-import { TAggregateFuncType, TColumn, TColumnAttribute, TColumnInfo, TColumnType, TKeyFormat, TNestedCondition, TOperator, TQuery, TSelectExpression, TSortKeyword, TSqlValue } from "./Type";
+import { Pool, PoolClient } from 'pg';
+import { TAggregateFuncType, TColumn, TColumnAttribute, TColumnInfo, TColumnType, TKeyFormat, TNestedCondition, TOperator, TOption, TQuery, TSelectExpression, TSortKeyword, TSqlValue } from "./Type";
 import ValidateValueUtil from './SqlUtils/ValidateValueUtil';
 import SelectExpression from './SqlUtils/SelectExpression';
 import WhereExpression from './SqlUtils/WhereExpression';
+import ValidateClient from './ValidateClient';
 
 export class TableModel {
 
@@ -119,10 +120,12 @@ export class TableModel {
         }
     }
 
-    private client: PoolClient;
+    private client: PoolClient | Pool;
+    constructor(client: Pool);
+    constructor(client: Pool, tableAlias: string);
     constructor(client: PoolClient);
     constructor(client: PoolClient, tableAlias: string);
-    constructor(client: PoolClient, tableAlias?: string) {
+    constructor(client: Pool | PoolClient, tableAlias?: string) {
         this.client = client;
         if (tableAlias !== undefined && tableAlias.trim() !== '') {
             this.tableAlias = tableAlias;
@@ -410,11 +413,11 @@ export class TableModel {
         'notInput': 'Please enter {name}.',
         'fk': 'The value of {name} does not exist in the table.'
     }
-    protected throwValidationError(code: string, message: string): never {
+    public throwValidationError(code: string, message: string): never {
         throw new Error(message);
     }
 
-    protected async validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean): Promise<void> {
+    protected async validateOptions(options: TOption, isInsert: boolean): Promise<void> {
         if (Object.keys(options).length === 0) {
             throw new Error('At least one key-value pair is required in options.');
         }
@@ -462,7 +465,7 @@ export class TableModel {
         }
     }
 
-    protected async validateInsert(options: {[key: string]: TSqlValue}) : Promise<void> {
+    protected async validateInsert(options: TOption) : Promise<void> {
         for (const key in this.Columns) {
             const column = this.getColumn(key);
             const name = (column.alias === undefined || column.alias === '') ? key : column.alias;
@@ -475,12 +478,12 @@ export class TableModel {
         }
     }
 
-    protected async validateUpdate(options: {[key: string]: TSqlValue}) : Promise<void> { }
-    protected async validateUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<void> { }
+    protected async validateUpdate(options: TOption) : Promise<void> { }
+    protected async validateUpdateId(id: any, options: TOption) : Promise<void> { }
     protected async validateDelete() : Promise<void> { }
     protected async validateDeleteId(id: any) : Promise<void> { }
 
-    public async executeInsert(options: {[key: string]: TSqlValue}) : Promise<void> {
+    public async executeInsert(options: TOption) : Promise<void> {
         await this.validateOptions(options, true);
         await this.validateInsert(options);
 
@@ -501,7 +504,7 @@ export class TableModel {
         await this.executeQuery(sql, vars);
     }
 
-    public async executeUpdate(options: {[key: string]: TSqlValue}) : Promise<number> {
+    public async executeUpdate(options: TOption) : Promise<number> {
         await this.validateOptions(options, false);
         await this.validateUpdate(options);
 
@@ -537,7 +540,7 @@ export class TableModel {
         return data.rowCount;
     }
 
-    public async executeUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<boolean> {
+    public async executeUpdateId(id: any, options: TOption) : Promise<boolean> {
         ValidateValueUtil.validateId(this.Columns, id);
         await this.validateOptions(options, false);
         await this.validateUpdateId(id, options);
@@ -662,5 +665,14 @@ export class TableModel {
         }
 
         return data;
+    }
+
+    private validateClient?: ValidateClient;
+    get ValidateClient(): ValidateClient {
+        if (this.validateClient === undefined) {
+            this.validateClient = new ValidateClient(this);
+        }
+
+        return this.validateClient;
     }
 }

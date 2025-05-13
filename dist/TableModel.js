@@ -16,6 +16,7 @@ exports.TableModel = void 0;
 const ValidateValueUtil_1 = __importDefault(require("./SqlUtils/ValidateValueUtil"));
 const SelectExpression_1 = __importDefault(require("./SqlUtils/SelectExpression"));
 const WhereExpression_1 = __importDefault(require("./SqlUtils/WhereExpression"));
+const ValidateClient_1 = __importDefault(require("./ValidateClient"));
 class TableModel {
     get DbName() { return this.dbName; }
     get TableName() {
@@ -591,6 +592,12 @@ class TableModel {
             }
             return data;
         });
+    }
+    get ValidateClient() {
+        if (this.validateClient === undefined) {
+            this.validateClient = new ValidateClient_1.default(this);
+        }
+        return this.validateClient;
     }
 }
 exports.TableModel = TableModel;

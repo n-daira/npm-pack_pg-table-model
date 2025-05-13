@@ -1,4 +1,5 @@
 import { Pool, PoolClient } from 'pg';
+import ValidateClient from './src/ValidateClient';
 
 declare module 'pg-table-model' {
     export type TSqlValue = string | number | boolean | Date | null;
@@ -18,6 +19,7 @@ declare module 'pg-table-model' {
     export type TNestedCondition = TCondition | ['AND' | 'OR', ...TNestedCondition[]] | TNestedCondition[];
     export type TSortKeyword = 'desc' | 'asc';
     export type TKeyFormat = 'snake' | 'lowerCamel';
+    export type TOption = {[key: string]: TSqlValue};
 
     export class TableModel {
         protected readonly dbName: string;
@@ -41,6 +43,8 @@ declare module 'pg-table-model' {
         public PageCount: number;
         set OffsetPage(value: number);
 
+        constructor(client: Pool);
+        constructor(client: Pool, tableAlias: string);
         constructor(client: PoolClient);
         constructor(client: PoolClient, tableAlias: string);
 
@@ -75,16 +79,16 @@ declare module 'pg-table-model' {
 
         protected readonly errorMessages: Record<TColumnType | 'length' | 'null' | 'notInput', string>
         protected throwValidationError(code: string, message: string): never;
-        protected validateOptions(options: {[key: string]: TSqlValue}, isInsert: boolean) : Promise<void>;
-        protected validateInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
-        protected validateUpdate(options: {[key: string]: TSqlValue}) : Promise<void>;
-        protected validateUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<void>;
+        protected validateOptions(options: TOption, isInsert: boolean) : Promise<void>;
+        protected validateInsert(options: TOption) : Promise<void>;
+        protected validateUpdate(options: TOption) : Promise<void>;
+        protected validateUpdateId(id: any, options: TOption) : Promise<void>;
         protected validateDelete() : Promise<void>;
         protected validateDeleteId(id: any) : Promise<void>;
 
-        public executeInsert(options: {[key: string]: TSqlValue}) : Promise<void>;
-        public executeUpdate(options: {[key: string]: TSqlValue}) : Promise<number>;
-        public executeUpdateId(id: any, options: {[key: string]: TSqlValue}) : Promise<boolean>;
+        public executeInsert(options: TOption) : Promise<void>;
+        public executeUpdate(options: TOption) : Promise<number>;
+        public executeUpdateId(id: any, options: TOption) : Promise<boolean>;
         public executeDelete() : Promise<number>;
         public executeDeleteId(id: any) : Promise<boolean>;
 
@@ -99,6 +103,8 @@ declare module 'pg-table-model' {
         public orderBySentence(query: string, sortKeyword: TSortKeyword): void;
 
         public groupBy(column: string | TColumnInfo): void;
+
+        get ValidateClient(): ValidateClient;
     }
 
     export function createTableDoc(models: Array<TableModel>, serviceName?: string): string;
