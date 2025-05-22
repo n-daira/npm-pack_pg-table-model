@@ -5,7 +5,9 @@ declare module 'pg-table-model' {
     export type TSqlValue = string | number | boolean | Date | null;
     export type TColumn = { alias?: string, type: TColumnType, length?: number, attribute: TColumnAttribute, default?: string, comment?: string};
     export type TColumnAttribute = "primary" | "nullable" | "hasDefault" | "noDefault";
-    export type TColumnType = "number" | "string" | "uuid" | "date" | "time" | "timestamp" | "bool";
+    export type TColumnType =
+        "number" | "number[]" | "string" | "string[]" | "uuid" | "uuid[]" | 
+        "date" | "date[]" | "time" | "time[]" | "timestamp" | "timestamp[]" | "bool" | "bool[]";
     export type TOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "like" | "ilike" | "h2f_like" | "h2f_ilike" | "in" | "not in";
     export type TColumnInfo = { model: TableModel, name: string }
     export type TQuery = {sql: string, vars?: Array<any>};

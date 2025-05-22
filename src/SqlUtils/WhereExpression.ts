@@ -12,12 +12,19 @@ export default class WhereExpression {
         // Are the operators correct?
         const useableOperator: { [key in TColumnType]: string[] } = {
             number: ["=", "!=", ">", ">=", "<", "<=", "in", "not in"],
+            'number[]': [],
             string: ["=", "!=", "like", "ilike", "h2f_like", "h2f_ilike", "in", "not in"],
+            'string[]': [],
             uuid: ["=", "!=", "in", "not in"],
+            'uuid[]': [],
             bool: ["=", "!=", "in", "not in"],
+            'bool[]': [],
             date: ["=", "!=", ">", ">=", "<", "<="],
+            'date[]': [],
             time: ["=", "!=", ">", ">=", "<", "<="],
-            timestamp: ["=", "!=", ">", ">=", "<", "<="]
+            'time[]': [],
+            timestamp: ["=", "!=", ">", ">=", "<", "<="],
+            'timestamp[]': []
         };
 
         if (useableOperator[leftColumn.type].includes(operator) == false) {

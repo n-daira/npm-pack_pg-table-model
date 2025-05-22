@@ -327,22 +327,23 @@ td:nth-child(11) {
 }
 
 function toColumnType(column: TColumn) {
-    switch (column.type) {
-        case 'uuid':
-            return 'UUID';
-        case 'bool':
-            return 'BOOLEAN';
-        case 'date':
-            return 'DATE';
-        case 'number':
-            return 'INTEGER';
-        case 'string':
-            return 'VARCHAR(' + column.length + ')';
-        case 'time':
-            return 'TIME';
-        case 'timestamp':
-            return 'TIMESTAMP';
+    if (column.type.startsWith('uuid')) {
+        return column.type.replace('uuid', 'UUID');
+    } else if (column.type.startsWith('bool')) {
+        return column.type.replace('bool', 'BOOLEAN');
+    } else if (column.type.startsWith('date')) {
+        return column.type.replace('date', 'DATE');
+    } else if (column.type.startsWith('number')) {
+        return column.type.replace('number', 'INTEGER');
+    } else if (column.type.startsWith('string')) {
+        return column.type.replace('string', `VARCHAR(${column.length})`);
+    } else if (column.type.startsWith('time')) {
+        return column.type.replace('time', 'TIME');
+    } else if (column.type.startsWith('timestamp')) {
+        return column.type.replace('timestamp', 'TIMESTAMP');
     }
+
+    return '';
 }
 
 function toColumnAttibute(column: TColumn) {
